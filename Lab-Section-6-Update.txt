@@ -1,0 +1,33 @@
+change eth2 to eth1 in Lab 5.
+ifdown eth2; ifdown eth1
+edit /etc/netwokr/interfaces
+remove eth1 section and change eth2 section to eth1
+ovs-vsctl show
+
+neutron net-create public --router:external=True
+neutron subnet-create --allocation-pool start=10.1.65.X,end=10.1.65.X public 10.1.65.0/24
+
+neutron net-create net1
+neutron subnet-create net1 192.168.0.0/24
+
+neutron_net=`neutron net-list | grep net1 | awk -F' ' '{print $2}'`
+neutron_public_net=`neutron net-list | grep public | awk -F' ' '{print $2}'`
+neutron_prv_subnet=`neutron subnet-list | grep '192.168.0.0' | awk -F' ' '{print $2}'`
+
+neutron router-create router1
+neutron router-interface-add router1 $neutron_prv_subnet
+neutron router-gateway-set router1 $neutron_public_net
+
+nova boot --flavor 1 --image 'CirrOS 0.3.2' --key_name key_cirros --nic net-id=$neutron_net --availability_zone nova:aio6 test-aio
+nova boot --flavor 1 --image 'Cirros 0.3.2' --key_name key_cirros --nic net-id=$neutron_net --availability_zone nova:compute6 test-compute
+
+ip_addr=`nova show test-compute | grep 'net1 network' | awk -F'|' '{print $3}'`
+port_id=`neutron port-list | grep $ip_addr | awk -F' ' '{print $2}'`
+neutron floatingip-create --port_id $port_id $neutron_public_net | grep floating_ip_address | awk '{print $4}'
+
+floating_ip=`neutron floatingip-create $neutron_public_net | grep floating_ip_address | awk '{print $4}'
+nova add-floating-ip test-aio $floating_ip
+
+cat >> /etc/neutron/fwaas_driver.ini <<EOF
+[fwaas]
+EOF
