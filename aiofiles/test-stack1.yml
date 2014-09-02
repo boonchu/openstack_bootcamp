@@ -1,0 +1,13 @@
+heat_template_version: 2013-05-23
+
+description: Simple template to deploy a single compute instance
+
+resources:
+  my_instance:
+    type: OS::Nova::Server
+    properties:
+      name: Stack-VM	
+      key_name: mykey
+      image: CirrOS 0.3.2
+      flavor: m1.tiny
+
