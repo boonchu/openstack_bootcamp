@@ -1,0 +1,245 @@
+-------------------------------------------------------------------------------------------------
+*****   Lab 4: Network Service Neutron Installation   ****
+-------------------------------------------------------------------------------------------------
+
+Like Nova Networking, Neutron manages software-defined networking for your OpenStack installation. However, unlike Nova Networking, you can configure Neutron for advanced virtual network topologies, such as per-tenant private networks and more.
+Any given Neutron set up has at least one external network. This network, unlike the other networks, is not merely a virtually defined network. Instead, it represents the view into a slice of the external network that is accessible outside the OpenStack installation.
+The Open vSwitch plug-in is one of the most popular core plug-ins. Open vSwitch configurations consists of bridges and ports. With Open vSwitch, you can use two different technologies to create the virtual networks: GRE or VLANs. To use GRE with Open vSwitch, Neutron creates GRE tunnels. These tunnels are ports on a bridge and enable bridges on different systems to act as though they were one bridge, which allows the compute and network nodes to act as one for the purposes of routing.
+SSH to AIO node with the credentials in Lab access
+Enter following command and Type pass as the [sudo] password 
+
+Step 1:
+sudo su -
+source ~/openrc.sh
+Neutron Installation
+
+Step 2:
+apt-get install neutron-server neutron-plugin-ml2 -y
+apt-get install neutron-plugin-ml2 neutron-dhcp-agent neutron-plugin-openvswitch-agent openvswitch-datapath-dkms neutron-l3-agent -y
+Database Creation
+Create neutron database by login to mysql with password as pass 
+
+Step 3:
+mysql -u root -ppass
+CREATE DATABASE neutron;
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' \
+IDENTIFIED BY 'pass';
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' \
+IDENTIFIED BY 'pass';
+exit
+Create User Neutron with password as pass
+
+Step 4:
+keystone user-create --name=neutron --pass=pass --email=neutron@onecloud.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |       neutron@onecloud.com       |
+| enabled  |               True               |
+|    id    | 249487a4198d447389cd050b109bf446 |
+|   name   |             neutron              |
+| username |             neutron              |
++----------+----------------------------------+
+keystone user-role-add --user=neutron --tenant=service --role=admin
+Define services and service endpoints
+
+Step 5:
+keystone service-create --name=neutron --type=network \
+     --description="OpenStack Networking Service"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |   OpenStack Networking Service   |
+|   enabled   |               True               |
+|      id     | f5fafa686097469bb31f8cc77fd9b51f |
+|     name    |             neutron              |
+|     type    |             network              |
++-------------+----------------------------------+
+
+Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ network / {print $2}' to get the service id of type network.
+
+Note: Change X with AIO node Number
+
+keystone endpoint-create --service-id $(keystone service-list | awk '/ network / {print $2}') --publicurl http://aioX:9696 --adminurl http://aioX:9696 --internalurl http://aioX:9696
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+|   adminurl  |        http://aio51:9696         |
+|      id     | e79afffbbe7645478e444840b1af76e9 |
+| internalurl |        http://aio51:9696         |
+|  publicurl  |        http://aio51:9696         |
+|    region   |            regionOne             |
+|  service_id | f5fafa686097469bb31f8cc77fd9b51f |
++-------------+----------------------------------+
+Enable packet forwarding and disable packet destination filtering so that the network node can coordinate traffic for the VMs. Edit the /etc/sysctl.conf file, as follows:
+
+Step 6:
+vi /etc/sysctl.conf
+Edit the following settings 
+net.ipv4.ip_forward=1
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
+Save the file by pressing ‘Esc’ and then type :wq
+Type the following command and confirm the changes are saved
+
+sysctl -p
+Configure Neutron Service
+Edit the /etc/neutron/neutron.conf file.
+
+Step 7:
+vi /etc/neutron/neutron.conf
+
+[DEFAULT]
+core_plugin = ml2
+service_plugins = router
+auth_strategy = keystone
+allow_overlapping_ips = True
+
+rpc_backend = neutron.openstack.common.rpc.impl_kombu
+rabbit_host = aioX	
+rabbit_password = pass
+
+[keystone_authtoken]
+auth_uri = http://aioX:5000
+auth_host = aioX
+auth_protocol = http
+auth_port = 35357
+admin_tenant_name = service
+admin_user = neutron
+admin_password = pass
+
+[database]
+connection = mysql://neutron:pass@aioX/neutron
+
+Step 8:
+Edit the /etc/neutron/neutron.conf file and add the following keys to the [DEFAULT] section:
+Obtain the service tenant identifier (id) with following command and fill it in neutron.conf
+keystone tenant-get service
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |          Service Tenant          |
+|   enabled   |               True               |
+|      id     | d1f0515ee4174c9ca4e6f73f13f0da2f |
+|     name    |             service              |
++-------------+----------------------------------+ 
+
+[DEFAULT]
+notify_nova_on_port_status_changes = True
+notify_nova_on_port_data_changes = True
+nova_url = http://aioX:8774/v2
+nova_admin_username = nova
+nova_admin_tenant_id = SERVICE_TENANT_ID (Get it from the output of keystone tenant-get service)
+nova_admin_password = pass
+nova_admin_auth_url = http://aioX:35357/v2.0
+ 
+To perform DHCP on the software-defined networks, Networking supports several different plug-ins. However, in this lab we are using Dnsmasq plug-in. 
+
+Step 9:
+Edit the /etc/neutron/dhcp_agent.ini file: 
+vi /etc/neutron/dhcp_agent.ini 
+interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
+use_namespaces = True
+
+Step 10:
+Edit the /etc/neutron/l3_agent.ini: uncomment
+vi /etc/neutron/l3_agent.ini
+interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
+use_namespaces = True
+
+Step 11:
+Edit the /etc/neutron/plugins/ml2/ml2_conf.ini file:
+Add the following keys to the [ml2], [ml2_type_gre] section:
+[ml2]
+type_drivers = gre
+tenant_network_types = gre
+mechanism_drivers = openvswitch
+
+[ml2_type_gre]
+tunnel_id_ranges = 1:1000
+
+[securitygroup]
+firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+enable_security_group = True
+
+[ovs]
+local_ip = eth1_INTERFACE_IP_ADDRESS #replace text with IP address
+tunnel_type = gre
+enable_tunneling = True
+
+Step 12:
+Edit the /etc/neutron/metadata_agent.ini file and modify the [DEFAULT] section:
+vi /etc/neutron/metadata_agent.ini
+ [DEFAULT]
+auth_url = http://aioX:5000/v2.0
+auth_region = regionOne
+admin_tenant_name = service
+admin_user = neutron
+admin_password = pass
+nova_metadata_ip = aioX
+metadata_proxy_shared_secret = pass
+
+Step 13:
+Edit the /etc/nova/nova.conf file to define a secret key that will be shared between the Compute Service and the Networking metadata agent.
+vi /etc/nova/nova.conf
+Add following to the [DEFAULT] section:
+ 
+[DEFAULT]
+service_neutron_metadata_proxy = true
+neutron_metadata_proxy_shared_secret = pass
+
+network_api_class=nova.network.neutronv2.api.API
+neutron_url=http://aioX:9696
+neutron_auth_strategy=keystone
+neutron_admin_tenant_name=service
+neutron_admin_username=neutron
+neutron_admin_password=pass
+neutron_admin_auth_url=http://aioX:35357/v2.0
+linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+security_group_api = neutron
+
+No matter which networking technology you use, you must add the br-int integration bridge, which connects to the VMs, and the br-ex external bridge, which connects to the outside world.
+
+Step 14:
+service nova-api restart
+service nova-scheduler restart
+service nova-conductor restart
+service neutron-plugin-openvswitch-agent restart
+service neutron-l3-agent restart
+service neutron-dhcp-agent restart
+service neutron-metadata-agent restart
+service openvswitch-switch restart
+ovs-vsctl add-br br-ex
+ovs-vsctl add-port br-ex eth2
+Restart Services
+
+Step 15:
+service nova-scheduler restart
+service nova-conductor restart
+service neutron-server restart
+service neutron-dhcp-agent restart
+service neutron-l3-agent restart
+service neutron-metadata-agent restart
+service neutron-plugin-openvswitch-agent restart
+service openvswitch-switch restart
+service nova-compute restart
+Check all the Neutron agents are working 
+
+neutron agent-list
++--------------------------------------+--------------------+-------+-------+----------------+
+| id                                   | agent_type         | host  | alive | admin_state_up |
++--------------------------------------+--------------------+-------+-------+----------------+
+| 05d590f8-68a6-4803-8f9c-2820e37454f8 | Open vSwitch agent | aio51 | :-)   | True           |
+| 2bf643e6-2114-4187-ae33-04c9ec435d05 | Metadata agent     | aio51 | :-)   | True           |
+| 592f2bbc-4e9f-4517-adaa-33cc10a6f62d | L3 agent           | aio51 | :-)   | True           |
+| 5b332f0a-f9f7-4bc3-8d59-76258cd5a3a6 | DHCP agent         | aio51 | :-)   | True           |
++--------------------------------------+--------------------+-------+-------+----------------+ x
+
+Step 16:
+Create the Tenant network:
+neutron net-create private-net
+Created a new Subnet for Tenant network:
+neutron subnet-create private-net --name private-subnet 10.10.10.0/24
+Neutron has been installed successfully in AIO node
