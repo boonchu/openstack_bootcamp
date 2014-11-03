@@ -1,0 +1,335 @@
+-------------------------------------------------------------------------------------------------
+*****   Lab 1: Identity Service (Keystone) Installation   *****
+-------------------------------------------------------------------------------------------------
+
+Objective:
+•	Install prerequisites for OpenStack installation in AIO node
+		* ntp
+		* mysql
+		* OpenStack packages
+		* Messaging queue server - RabbitMQ Server
+•	Configuration and verification of Identity Service Keystone
+
+Basic Configuration
+Check the Network settings of AIO node 
+SSH to AIO node with the credentials in Lab access section (above)
+
+Step 1: 
+Enter the following command and type ubuntu as the [sudo] password 
+sudo su -
+vi /etc/network/interfaces
+Enter the network details for aioX node as shown below. Only eth0 should have a gateway/dns configuration
+eth0 10.1.64.1X
+eth1 10.1.65.1X
+The file should look something like:
+auto eth0
+iface eth0 inet static
+	address 10.1.64.1X
+	netmask 255.255.255.0
+	network 10.1.64.0
+	broadcast 10.1.64.255
+	gateway 10.1.64.1
+	# dns-* options are implemented by the resolvconf package, if installed
+	dns-nameservers 10.1.1.92
+	dns-search onecloud
+auto eth1
+iface eth1 inet static
+    address 10.1.65.1X
+    netmask 255.255.255.0
+auto eth2
+iface eth2  inet manual
+        up ip link set dev $IFACE up
+        down ip link set dev $IFACE down
+Note: vi Editor
+Press key “i” for insert in vi editor
+<esc> to get out of edit mode
+:wq to save the file.
+:q! to exit without saving
+
+Step 2: 
+Check the hosts file configuration
+vi /etc/hosts
+Enter the IP address and host names of aio node and compute01 node. (X - Student POD Number)
+10.1.64.1X	aioX.onecloud				aioX
+10.1.64.1Y	computeY.onecloud			computeY
+10.1.64.1	gw.onecloud				gw
+
+Openstack Packages
+
+Step 3:
+This section describes the configuration you must complete after you configure machine to install the OpenStack Icehouse packages.
+apt-get install python-software-properties -y
+apt-get update && apt-get dist-upgrade -y
+
+Step 4: 
+Reboot the machine
+Type following command to restart network service 
+ifdown eth1; ifup eth1; ifdown eth2; ifup eth2
+ifdown: interface eth1 not configured
+ifdown: interface eth2 not configured 
+Note: it is ok if the system complains about interfaces not being configured in the previous step
+Prerequisites for OpenStack
+NTP Server
+
+Step 5:  
+To synchronize services across OpenStack nodes (compute, controller and network).
+ntpdate gw.onecloud
+24 Aug 22:17:36 ntpdate[1163]: adjust time server 10.1.64.1 offset 0.000462 sec
+apt-get install ntp -y
+Edit the /etc/ntp.conf file to point to an accessible ntp server (the default may work as well):
+vi /etc/ntp.conf
+Remove or comment out the following the lines:
+server 0.ubuntu.pool.ntp.org	
+server 1.ubuntu.pool.ntp.org
+server 2.ubuntu.pool.ntp.org
+server 3.ubuntu.pool.ntp.org
+server ntp.ubuntu.com
+and add the following line:
+server gw.onecloud
+Then restart NTP and make sure it’s connected to the clock:
+service ntp restart
+ntpq –p
+
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================
+ li506-17.member 209.51.161.238   2 u   60   64    1   74.016   15.343   0.000
+ sola-dal-09.ser 184.173.173.205  3 u   59   64    1   41.609   13.524   0.000
+ tock5.usshc.com .GPS.            1 u   58   64    1   59.961   15.893   0.000
+ 199.96.82.197.r 132.163.4.103    2 u   57   64    1   54.124   13.980   0.000
+ golem.canonical 192.93.2.20      2 u   56   64    1  139.331   17.047   0.000
+ gw.onecloud     91.189.94.4      3 u   55   64    1    1.159   14.705   0.000
+
+MySQL
+
+Step 6:
+Most of the OpenStack services require a database to store information. Here we are using MySQL for that purpose.
+apt-get install python-mysqldb mysql-server -y
+Installation will prompt for password, Type pass as root password and press Enter.  For this lab, it is important that you stick with the generic passwords and user-ids.  Clearly you would use more secure random strings for a production system.
+NOTE: Do not set a random password in the lab, just use the define passwords so that the configurations are consistent!
+
+Step 7:
+Edit /etc/mysql/my.cnf and set the bind-address to the IP address of AIO node, to enable access from outside.
+vi /etc/mysql/my.cnf
+Use /bind-address to find the bind-address parameter in [mysqld] section
+Change the bind-address as 10.1.64.1X from its default of 127.0.0.1 so that remote services can access they Mysql service.
+bind-address = 10.1.64.1X
+Add the following lines to my.cnf below the bind-address
+default-storage-engine = innodb
+innodb_file_per_table
+collation-server = utf8_general_ci
+init-connect = 'SET NAMES utf8'
+character-set-server = utf8
+
+Step 8:
+Restart the MySQL service to apply the changes.
+service mysql restart
+mysql_install_db
+mysql_secure_installation
+Press Enter for all prompts, yes to keep pass word the same, no to subsequent questions. 
+Messaging Queue Sever
+
+Step 9:
+Since OpenStack maintaining asynchronous calls between its services, we need a messaging server RabbitMQ server.
+apt-get install rabbitmq-server -y
+
+Step 10:
+Change the default guest password of RabbitMQ to pass
+rabbitmqctl change_password guest pass
+service rabbitmq-server restart
+reboot
+Identity Service Keystone
+
+Step 11:
+Install the OpenStack identity service on node.
+apt-get install keystone -y
+The Identity Service uses a database to store information. Specify the location of the database in the configuration file. We use a MySQL database with the username keystone. 
+
+Step 12:
+Edit /etc/keystone/keystone.conf and change connection in the [database] section for MySQL
+
+vi /etc/keystone/keystone.conf
+/[database] to find the [database] section
+Change the connection parameter:
+connection = mysql://keystone:pass@aioX/keystone 
+Press Esc key
+Type :wq for save the file.
+
+Step 13:
+By default, the Ubuntu packages create an SQLite database. Delete the keystone.db file created in the /var/lib/keystone/ directory so that it does not get used by mistake.
+rm /var/lib/keystone/keystone.db
+Keystone Database
+
+Step 14: 
+Create Keystone database by login to mysql with password as pass 
+mysql -uroot -ppass
+CREATE DATABASE keystone;
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY 'pass';
+GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'%' IDENTIFIED BY 'pass';
+exit
+
+Step 15:
+Create the database tables for the Identity Service:
+
+su -s /bin/sh -c "keystone-manage db_sync" keystone
+
+Step 16:
+Define an authorization token to use as a shared secret between the Identity Service and other OpenStack services. Edit /etc/keystone/keystone.conf and uncomment to change admin_token with ADMIN_TOKEN in [DEFAULT] section:
+vi /etc/keystone/keystone.conf
+# Administrative Token
+# admin_token  = ADMIN_TOKEN
+admin_token  = ADMIN_TOKEN
+^ NOTE: There cannot be a space at the beginning of configuration parameter lines
+
+Step 17:
+Restart the Identity Service:
+
+service keystone restart
+Define users, tenants and roles
+After you install the Identity Service, set up users, tenants, and roles. These are used to allow access to services and endpoints.
+You would indicate a user and password to authenticate with the Identity Service. At this point, however, we have not created any users, so we have to use the authorization token created in an earlier step.
+You can pass this with the --os-token option to the keystone command or set the OS_SERVICE_TOKEN environment variable. We'll set OS_SERVICE_TOKEN, as well as OS_SERVICE_ENDPOINT to specify where the Identity Service is running.
+
+Step 18:
+Note: Change X with AIO node Number
+export OS_SERVICE_TOKEN=ADMIN_TOKEN
+export OS_SERVICE_ENDPOINT=http://aioX:35357/v2.0
+Create a tenant for an administrative user and a tenant for other OpenStack services
+keystone tenant-create --name=admin --description="Admin Tenant"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |           Admin Tenant           |
+|   enabled   |               True               |
+|      id     | 6c7ecac71357496fabf959f70e0681b3 |
+|     name    |              admin               |
++-------------+----------------------------------+
+keystone tenant-create --name=service --description="Service Tenant"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |          Service Tenant          |
+|   enabled   |               True               |
+|      id     | 4e05f27ffc7a474db3821ada26b7a5fa |
+|     name    |             service              |
++-------------+----------------------------------+
+Create an administrative user called admin with password as pass and an email address for the account
+
+keystone user-create --name=admin --pass=pass --email=admin@onecloud.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |        admin@onecloud.com        |
+| enabled  |               True               |
+|    id    | ffd8ac42900746919a1d9c3307c53445 |
+|   name   |              admin               |
+| username |              admin               |
++----------+----------------------------------+
+
+Create a role for administrative tasks called admin. Any roles you create should map to roles specified in the policy.json files of the various OpenStack services. The default policy files use the admin role to allow access to most services.
+
+keystone role-create --name=admin
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|    id    | ec81d33f35484a538d5cb050db8177eb |
+|   name   |              admin               |
++----------+----------------------------------+
+
+Add roles to users. Users always log in with a tenant, and roles are assigned to users within tenants. Add the admin role to the admin user when logging in with the admin tenant.
+
+keystone user-role-add --user=admin --tenant=admin --role=admin
+We also add a member role and add admin as a member of the admin tenant, otherwise Horizon will not properly load.
+keystone user-role-add --user=admin --role=_member_ --tenant=admin
+Check the user and tenant list
+keystone user-list
++----------------------------------+-------+---------+--------------------+
+|                id                |  name | enabled |       email        |
++----------------------------------+-------+---------+--------------------+
+| ffd8ac42900746919a1d9c3307c53445 | admin |   True  | admin@onecloud.com |
++----------------------------------+-------+---------+--------------------+
+keystone tenant-list 
++----------------------------------+---------+---------+
+|                id                |   name  | enabled |
++----------------------------------+---------+---------+
+| 6c7ecac71357496fabf959f70e0681b3 |  admin  |   True  |
+| 4e05f27ffc7a474db3821ada26b7a5fa | service |   True  |
++----------------------------------+---------+---------+
+Define services and service endpoints
+you must register each service in your OpenStack installation, so that the Identity Service can track which OpenStack services are installed and where they are located on the network. To register a service, run these commands:
+•	keystone service-create	 (Describes the service)
+•	keystone endpoint-create	 (Associates API endpoints with the service)
+
+Step 19:
+Create a service entry for the Identity Service:
+keystone service-create --name=keystone --type=identity  --description="Keystone Identity Service"
+
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |    Keystone Identity Service     |
+|   enabled   |               True               |
+|      id     | aa421d6640fc4f6b8e697a800f6515ea |
+|     name    |             keystone             |
+|     type    |             identity             |
++-------------+----------------------------------+
+
+When you specify an endpoint, you provide URLs for the public API, internal API, and admin API. Note that the Identity Service uses a different port for the admin API.
+The service ID is randomly generated and is different from the one shown here. The following command will create a keystone identity service endpoint with service-id value from the keystone service-create command.
+Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ identity / {print $2}' to get the service id of type identity.
+Note: Change X with AIO node Number
+
+keystone endpoint-create --service-id=$(keystone service-list | awk '/ identity / {print $2}') --publicurl=http://aioX:5000/v2.0 --internalurl=http://aioX:5000/v2.0 --adminurl=http://aioX:35357/v2.0
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+|   adminurl  |     http://aio51:35357/v2.0      |
+|      id     | c56a01e470d940eda883328b45d0be19 |
+| internalurl |      http://aio51:5000/v2.0      |
+|  publicurl  |      http://aio51:5000/v2.0      |
+|    region   |            regionOne             |
+|  service_id | aa421d6640fc4f6b8e697a800f6515ea |
++-------------+----------------------------------+
+
+Verify the Identity service installation
+To verify the Identity Service is installed and configured correctly, first unset the OS_SERVICE_TOKEN and OS_SERVICE_ENDPOINT environment variables. These were only used to bootstrap the administrative user and register the Identity Service.
+
+Step 20:
+unset OS_SERVICE_TOKEN OS_SERVICE_ENDPOINT
+You can now use regular username-based authentication. Request an authentication token using the admin user and the password you chose during the earlier administrative user-creation step. 
+
+keystone --os-username=admin --os-password=pass --os-auth-url=http://aioX:35357/v2.0 token-get
+You should receive a token in response, paired with your user ID. This verifies that keystone is running on the expected endpoint, and that your user account is established with the expected credentials.(scroll up in ssh windows to see the user ID)
+Next, verify that authorization is behaving as expected by requesting authorization on a tenant. 
+
+keystone --os-username=admin --os-password=pass --os-tenant-name=admin --os-auth-url=http://aioX:35357/v2.0 token-get
+You should receive a new token in response, this time including the ID of the tenant you specified. This verifies that your user account has an explicitly defined role on the specified tenant, and that the tenant exists as expected.
+
+Step 21:
+You can also set your --os-* variables in your environment to simplify command-line usage. Setup a openrc.sh file with the admin credentials and admin endpoint.
+vi ~/openrc.sh
+Enter following line in the openrc.sh file by pressing key “i” to insert.
+export OS_USERNAME=admin
+export OS_PASSWORD=pass
+export OS_TENANT_NAME=admin
+export OS_AUTH_URL=http://aioX:35357/v2.0
+
+Press Esc and Type :wq to save the file.
+
+You can source this file to read in the environment variables.
+
+Step 22:
+source ~/openrc.sh
+Verify that your openrc.sh file is configured correctly by performing the same command as above, but without the --os-* arguments.
+
+keystone token-get
+The command returns a token and the ID of the specified tenant. This verifies that you have configured your environment variables correctly.
+Finally, verify that your admin account has authorization to perform administrative commands.
+
+keystone user-list
++----------------------------------+-------+---------+--------------------+
+|                id                |  name | enabled |       email        |
++----------------------------------+-------+---------+--------------------+
+| ffd8ac42900746919a1d9c3307c53445 | admin |   True  | admin@onecloud.com |
++----------------------------------+-------+---------+--------------------+
+This verifies that your user account has the admin role, which matches the role used in the Identity Service policy.json file.
+Identity service and prerequisites installed successfully.
