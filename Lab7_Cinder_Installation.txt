@@ -1,0 +1,291 @@
+-------------------------------------------------------------------------------------------------
+Lab 7: Block Storage Service (Cinder) Installation
+-------------------------------------------------------------------------------------------------
+
+In Storage service, we are installing and configuring block storage service Cinder. The Block Storage Service enables management of volumes, volume snapshots, and volume types. The Block Storage Service interacts with Compute to provide volumes for instances.
+ 
+SSH to AIO node with the credentials in Lab access
+Enter following command and Type ubuntu as the [sudo] password
+
+Step 1:
+sudo su -
+source ~/openrc.sh
+Cinder Installation on AIO Node
+In multinode environment install following OpenStack Block Storage services on the Controller node. The Storage node contains the disk that serves volumes. 
+
+Step 2:
+You can configure OpenStack to use various storage systems. This Lab is using LVM.
+apt-get install -y cinder-api cinder-scheduler
+apt-get install -y lvm2 
+apt-get install -y cinder-volume
+Create Database for Storage Service
+
+Step 3:
+Create Database cinder for Storage service by login to mysql with password as pass
+mysql -u root -ppass
+CREATE DATABASE cinder;
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY 'pass';
+GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'pass';
+exit
+
+Step 4:
+By default, the Ubuntu packages create a SQLite database. Delete the cinder.sqlite file created in the /var/lib/cinder/ directory so that it does not get used by mistake.
+rm /var/lib/cinder/cinder.sqlite
+
+Step 5:
+Create a cinder user that Storage uses to authenticate with the Identity Service. Use the service tenant and give the user the admin role
+keystone user-create --name=cinder --pass=pass --email=cinder@onecloud.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |       cinder@onecloud.com        |
+| enabled  |               True               |
+|    id    | 98cde01da3044f18a6f3cf3ccf7babaa |
+|   name   |              cinder              |
+| username |              cinder              |
++----------+----------------------------------+
+
+keystone user-role-add --user=cinder --tenant=service --role=admin
+Define services and service endpoints
+
+Step 6:
+Register the Block Storage Service with the Identity Service so that other OpenStack services can locate it. Register the service and specify the endpoint.
+keystone service-create --name=cinder --type=volume --description="OpenStack Block Storage"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |     OpenStack Block Storage      |
+|   enabled   |               True               |
+|      id     | a934854782f6481ba5b5ffe479a0e9cc |
+|     name    |              cinder              |
+|     type    |              volume              |
++-------------+----------------------------------+
+
+Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ volume / {print $2}' to get the service id of type volume.
+
+Note: Change X with AIO node Number
+
+keystone endpoint-create --service-id=$(keystone service-list | awk '/ volume / {print $2}') --publicurl=http://aioX:8776/v1/%\(tenant_id\)s --internalurl=http://aioX:8776/v1/%\(tenant_id\)s --adminurl=http://aioX:8776/v1/%\(tenant_id\)s
++-------------+------------------------------------+
+|   Property  |               Value                |
++-------------+------------------------------------+
+|   adminurl  | http://aio51:8776/v1/%(tenant_id)s |
+|      id     |  055f81541eb5474ba46b75e3a7883a70  |
+| internalurl | http://aio51:8776/v1/%(tenant_id)s |
+|  publicurl  | http://aio51:8776/v1/%(tenant_id)s |
+|    region   |             regionOne              |
+|  service_id |  a934854782f6481ba5b5ffe479a0e9cc  |
++-------------+------------------------------------+
+Similarly register a service and endpoint for version 2 of the Block Storage service API.
+
+keystone service-create --name=cinderv2 --type=volumev2 --description="OpenStack Block Storage v2"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |    OpenStack Block Storage v2    |
+|   enabled   |               True               |
+|      id     | 3d7606abdd134e68bc81964796f43807 |
+|     name    |             cinderv2             |
+|     type    |             volumev2             |
++-------------+----------------------------------+
+
+Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ volumev2 / {print $2}' to get the service id of type volumev2.
+Note: Change X with AIO node Number
+
+keystone endpoint-create --service-id=$(keystone service-list | awk '/ volumev2 / {print $2}') --publicurl=http://aioX:8776/v2/%\(tenant_id\)s --internalurl=http://aioX:8776/v2/%\(tenant_id\)s --adminurl=http://aioX:8776/v2/%\(tenant_id\)s
++-------------+------------------------------------+
+|   Property  |               Value                |
++-------------+------------------------------------+
+|   adminurl  | http://aio51:8776/v2/%(tenant_id)s |
+|      id     |  b9d142c8346143189eb03455fdddf3bb  |
+| internalurl | http://aio51:8776/v2/%(tenant_id)s |
+|  publicurl  | http://aio51:8776/v2/%(tenant_id)s |
+|    region   |             regionOne              |
+|  service_id |  3d7606abdd134e68bc81964796f43807  |
++-------------+------------------------------------+
+Configure Cinder Service
+
+Step 7:
+Edit /etc/cinder/cinder.conf
+vi /etc/cinder/cinder.conf
+Change the following in [DEFAULT], [keystone_authtoken]  and [database] sections
+
+[DEFAULT]
+rpc_backend = cinder.openstack.common.rpc.impl_kombu
+rabbit_host = aioX
+rabbit_port = 5672
+rabbit_userid = guest
+rabbit_password = pass
+glance_host = aioX
+
+[keystone_authtoken]
+auth_uri = http://aioX:5000
+auth_host = aioX
+auth_port = 35357
+auth_protocol = http
+admin_tenant_name = service
+admin_user = cinder
+admin_password = pass
+
+[database]
+connection = mysql://cinder:pass@aioX/cinder
+
+Configure physical hard disks
+
+Step 8:
+Type following commands to configure physical disks and create cinder-vloumes
+dd if=/dev/zero of=/dev/sdb count=100 bs=1M	
+100+0 records in
+100+0 records out
+104857600 bytes (105 MB) copied, 1.20612 s, 86.9 MB/s
+
+fdisk -l	
+Disk /dev/sda: 21.5 GB, 21474836480 bytes
+255 heads, 63 sectors/track, 2610 cylinders, total 41943040 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x000cb3c6
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sda1   *        2048      499711      248832   83  Linux
+/dev/sda2          501758    41940991    20719617    5  Extended
+/dev/sda5          501760    41940991    20719616   8e  Linux LVM
+
+Disk /dev/sdb: 21.5 GB, 21474836480 bytes
+255 heads, 63 sectors/track, 2610 cylinders, total 41943040 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+Disk /dev/sdb doesn't contain a valid partition table
+
+Disk /dev/mapper/aio51--vg-root: 16.9 GB, 16903045120 bytes
+255 heads, 63 sectors/track, 2055 cylinders, total 33013760 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+Disk /dev/mapper/aio51--vg-root doesn't contain a valid partition table
+
+Disk /dev/mapper/aio51--vg-swap_1: 4290 MB, 4290772992 bytes
+255 heads, 63 sectors/track, 521 cylinders, total 8380416 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00000000
+
+Disk /dev/mapper/aio51--vg-swap_1 doesn't contain a valid partition table
+
+Select the second disk and create physical volume and cinder volume group
+pvcreate /dev/sdb
+vgcreate cinder-volumes /dev/sdb
+Volume group "cinder-volumes" successfully created
+
+pvdisplay
+
+--- Physical volume ---
+  PV Name               /dev/sdb
+  VG Name               cinder-volumes
+  PV Size               20.00 GiB / not usable 4.00 MiB
+  Allocatable           yes
+  PE Size               4.00 MiB
+  Total PE              5119
+  Free PE               5119
+  Allocated PE          0
+  PV UUID               33ZiCg-9fR8-YucF-dVZe-l477-Coba-S8JFGa
+
+  --- Physical volume ---
+  PV Name               /dev/sda5
+  VG Name               aio51-vg
+  PV Size               19.76 GiB / not usable 2.00 MiB
+  Allocatable           yes
+  PE Size               4.00 MiB
+  Total PE              5058
+  Free PE               5
+  Allocated PE          5053
+  PV UUID               ZLqVnW-PDPy-rgwL-G2Yw-tfUR-s5cC-VGU2SG
+
+vgdisplay
+  --- Volume group ---
+  VG Name               cinder-volumes
+  System ID
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  1
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               20.00 GiB
+  PE Size               4.00 MiB
+  Total PE              5119
+  Alloc PE / Size       0 / 0
+  Free  PE / Size       5119 / 20.00 GiB
+  VG UUID               peIcCZ-i2bl-ncC3-cvb2-M49k-bp7G-wip1sY
+
+  --- Volume group ---
+  VG Name               aio51-vg
+  System ID
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  3
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                2
+  Open LV               2
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               19.76 GiB
+  PE Size               4.00 MiB
+  Total PE              5058
+  Alloc PE / Size       5053 / 19.74 GiB
+  Free  PE / Size       5 / 20.00 MiB
+  VG UUID               5EEPnH-XI3s-51qa-CHcM-OcWu-aR1u-BxLisd
+
+Step 9:
+Populate Database and Restart Services
+su -s /bin/sh -c "cinder-manage db sync" cinder
+service cinder-scheduler restart
+service cinder-api restart
+service cinder-volume restart
+service tgt restart
+Test Cinder Service
+Step 10:
+Create 10GB of block storage as Vol1.
+cinder create --display-name Vol1 10
++---------------------+--------------------------------------+
+|       Property      |                Value                 |
++---------------------+--------------------------------------+
+|     attachments     |                  []                  |
+|  availability_zone  |                 nova                 |
+|       bootable      |                false                 |
+|      created_at     |      2014-08-25T17:43:37.106041      |
+| display_description |                 None                 |
+|     display_name    |                 Vol1                 |
+|      encrypted      |                False                 |
+|          id         | 2fecb1f2-e0d0-4283-bfad-15267eb0564c |
+|       metadata      |                  {}                  |
+|         size        |                  10                  |
+|     snapshot_id     |                 None                 |
+|     source_volid    |                 None                 |
+|        status       |               creating               |
+|     volume_type     |                 None                 |
++---------------------+--------------------------------------+
+
+cinder list
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+|                  ID                  |   Status  | Display Name | Size | Volume Type | Bootable | Attached to |
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+| 2fecb1f2-e0d0-4283-bfad-15267eb0564c | available |     Vol1     |  10  |     None    |  false   |             |
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+
+If the status is available, then volume creation and Cinder installation Completed successfully.
