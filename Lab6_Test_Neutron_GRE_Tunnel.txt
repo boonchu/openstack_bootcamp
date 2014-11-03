@@ -1,0 +1,112 @@
+-------------------------------------------------------------------------------------------------
+*****   Lab 6: Test Neutron/GRE tunnel   *****
+-------------------------------------------------------------------------------------------------
+
+Log On to the AIOX node with the credentials in LAB access Sheet
+Launch an Instance
+An instance is a virtual machine that OpenStack provisions on a Compute servers.
+Generate a keypair that consists of a private and public key to be able to launch instances on OpenStack. These keys are injected into the instances to make password-less SSH access to the instance. 
+
+Step 1:
+Type ssh-keygen to generate the keypair and Press Enter for all prompts
+ssh-keygen
+root@aio51:~# ssh-keygen
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa):
+Created directory '/root/.ssh'.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /root/.ssh/id_rsa.
+Your public key has been saved in /root/.ssh/id_rsa.pub.
+The key fingerprint is:
+b4:d7:7f:6c:25:4f:19:dc:9f:6f:7c:ed:90:a8:d1:fd root@aio51
+The key's randomart image is:
++--[ RSA 2048]----+
+|                 |
+|              . .|
+|        .      o.|
+|       . . .    =|
+|        S . . .o+|
+|         . . + B+|
+|          . o = @|
+|           o   B.|
+|          .     E|
++-----------------+
+
+Add the key to the system as mykey
+nova keypair-add --pub_key ~/.ssh/id_rsa.pub mykey
+You have just created the mykey keypair. The id_rsa private key is saved locally in ~/.ssh, which you can use to connect to an instance launched by using mykey as the keypair. To view available keypairs:
+nova keypair-list
++-------+-------------------------------------------------+
+| Name  | Fingerprint                                     |
++-------+-------------------------------------------------+
+| mykey | b4:d7:7f:6c:25:4f:19:dc:9f:6f:7c:ed:90:a8:d1:fd |
++-------+-------------------------------------------------+
+
+Step 2:
+To use SSH and ping to the VMs, configure security group rules.
+nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
++-------------+-----------+---------+-----------+--------------+
+| IP Protocol | From Port | To Port | IP Range  | Source Group |
++-------------+-----------+---------+-----------+--------------+
+| tcp         | 22        | 22      | 0.0.0.0/0 |              |
++-------------+-----------+---------+-----------+--------------+
+nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
+
++-------------+-----------+---------+-----------+--------------+
+| IP Protocol | From Port | To Port | IP Range  | Source Group |
++-------------+-----------+---------+-----------+--------------+
+| icmp        | -1        | -1      | 0.0.0.0/0 |              |
++-------------+-----------+---------+-----------+--------------+
+
+To launch an instance, you must specify the flavor ID, keypair, image ID. A flavor is a resource allocation profile. It specifies how many virtual CPUs and how much RAM your instance gets. 
+
+Step 3:
+To see a list of the available profiles:
+
+nova flavor-list
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| 1  | m1.tiny   | 512       | 1    | 0         |      | 1     | 1.0         | True      |
+| 2  | m1.small  | 2048      | 20   | 0         |      | 1     | 1.0         | True      |
+| 3  | m1.medium | 4096      | 40   | 0         |      | 2     | 1.0         | True      |
+| 4  | m1.large  | 8192      | 80   | 0         |      | 4     | 1.0         | True      |
+| 5  | m1.xlarge | 16384     | 160  | 0         |      | 8     | 1.0         | True      |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+
+Get the ID of the image to use for the instance:
+
+nova image-list
++--------------------------------------+--------------+--------+--------+
+| ID                                   | Name         | Status | Server |
++--------------------------------------+--------------+--------+--------+
+| dd1193c0-e365-41e1-b879-89b3eedb4575 | CirrOS 0.3.2 | ACTIVE |        |
++--------------------------------------+--------------+--------+--------+
+
+Step 4:
+Create one VM in each host 
+Note: Change X and Y Values with your Aio and Compute numbers
+nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:aioX --key_name mykey test-aio
+nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:computeY --key_name mykey test-compute
+Check to see if the VMs were spun up correctly 
+
+nova list 
++--------------------------------------+--------------+--------+------------+-------------+--------------------+
+| ID                                   | Name         | Status | Task State | Power State | Networks           |
++--------------------------------------+--------------+--------+------------+-------------+--------------------+
+| 8ca061ea-f1f1-4cd4-a1cf-7b0be9a56561 | test-aio     | ACTIVE | -          | Running     | private=172.16.0.2 |
+| b4b0cba6-bc3f-4266-b5be-1894683fc835 | test-compute | ACTIVE | -          | Running     | private=172.16.0.7 |
++--------------------------------------+--------------+--------+------------+-------------+--------------------+
+
+Note the IP address of the VMs
+Get the VM’s VNC console URL by following command
+nova get-vnc-console test-aio novnc	
++-------+----------------------------------------------------------------------------------+
+| Type  | Url                                                                              |
++-------+----------------------------------------------------------------------------------+
+| novnc | http://10.1.64.151:6080/vnc_auto.html?token=045600c3-297d-49f9-a9da-3d7b8b804639 |
++-------+----------------------------------------------------------------------------------+
+
+Paste this URL in a web browser and login to the vm console with the user name and password shown in the console of Cirros VM.
+Ping the other VM and confirm that GRE tunnel has been established.
