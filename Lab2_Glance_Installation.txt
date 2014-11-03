@@ -1,0 +1,165 @@
+-------------------------------------------------------------------------------------------------
+*****   Lab 2: Image Service (Glance) Installation   *****
+-------------------------------------------------------------------------------------------------
+
+The OpenStack Image Service enables users to storage and retrieve Operating Systems (virtual machine images), also known as the Glance project. The Image Service offers a REST API that enables you to query Virtual Machine Images and its metadata. Images can be stored in a variety of locations from simple file systems to object – storage systems like Openstack Object Storage.
+This lab configures the Image Service to use the file backend. Images uploaded to the Image Service will be stored in a directory on the same system that hosts the service. By default this directory is/var/lib/glance/images/.
+
+Image Service Installation
+
+Step 1:
+SSH to AIO node with the credentials in Lab access
+Enter following command and Type pass as the [sudo] password 
+sudo su -
+source ~/openrc.sh
+apt-get install glance python-glanceclient -y
+Create Database for Image Service
+
+Step 2:
+The Image Service stores information about images in a database. Create Keystone database by login to mysql with password as pass
+mysql -uroot -ppass
+CREATE DATABASE glance;
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'pass';
+GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'pass';
+exit
+
+Step 3:
+By default, the Ubuntu packages create a SQLite database. Delete the glance.sqlite file created in the /var/lib/glance/ directory so that it does not get used by mistake.
+rm /var/lib/glance/glance.sqlite
+rm: cannot remove â/var/lib/glance/glance.sqliteâ: No such file or directory
+Note: This file may not exist in your system
+User Creation
+Create a glance user that the Image Service can use to authenticate with the Identity Service. 
+
+Step 4:
+Choose a password as pass and specify an email address for the glance user. Use service as tenant and admin as role.
+keystone user-create --name=glance --pass=pass --email=glance@onecloud.com
++----------+----------------------------------+
+| Property |              Value               |
++----------+----------------------------------+
+|  email   |       glance@onecloud.com        |
+| enabled  |               True               |
+|    id    | 6e652e807f934e1e893419165a9a788e |
+|   name   |              glance              |
+| username |              glance              |
++----------+----------------------------------+
+keystone user-role-add --user=glance --tenant=service --role=admin
+Configure Image Service
+The Image Service provides the glance-api and glance-registry services, each with its own configuration file glance-api.conf and glance-registry.conf
+Update glance-api.conf and glance-registry.conf
+
+Step 5:
+Edit /etc/glance/glance-api.conf
+vi /etc/glance/glance-api.conf
+/rabbit_host to find and change the rabbit host details as below
+rpc_backend = rabbit
+rabbit_host = aioX
+rabbit_userid = guest
+rabbit_password = pass
+
+Step 6:
+Configure the location of the database.
+Search for the [database] section: /[database] and add the sql connection information as follows:
+#sqlite_db = /var/lib/glance/glance.sqlite
+connection = mysql://glance:pass@aioX/glance
+
+Note: You need to comment out the sqlite path if it exists.
+ 
+Press Down Arrow key to Scroll down up to [keystone_authtoken] section. To configure the Image Service to use the Identity Service for authentication, edit the following keys under the [keystone_authtoken] section 
+auth_uri = http://aioX:5000
+auth_host = aioX
+auth_port=35357
+auth_protocol=http
+admin_tenant_name = service
+admin_user = glance
+admin_password = pass
+Press Down Arrow key to scroll down up to [paste_deploy] section
+Add the following key under the [paste_deploy] section:
+flavor = keystone
+
+Press Esc key and Type :wq to save the file.
+
+Step 7:
+Similarly edit /etc/glance/glance-registry.conf
+vi /etc/glance/glance-registry.conf
+Follow the instructions in Step 6 to finish this task.
+Define services and service endpoints
+Register the Image Service with the Identity Service so that other OpenStack services can locate it. 
+
+Step 8:
+Register the service and create the endpoint:
+keystone service-create --name=glance --type=image --description="Glance Image Service"
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+| description |       Glance Image Service       |
+|   enabled   |               True               |
+|      id     | 96d1583e720f4104855f624c3a2af733 |
+|     name    |              glance              |
+|     type    |              image               |
++-------------+----------------------------------+
+Note: Service id to use in endpoint-create command
+
+Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ image / {print $2}' to get the service id of type image.
+Note: Change X with AIO node Number
+keystone endpoint-create --service-id=$(keystone service-list | awk '/ image / {print $2}') --publicurl=http://aioX:9292 --internalurl=http://aioX:9292 --adminurl=http://aioX:9292
++-------------+----------------------------------+
+|   Property  |              Value               |
++-------------+----------------------------------+
+|   adminurl  |        http://aio51:9292         |
+|      id     | 9fb1114401334a3fbf7c2bdb7193558c |
+| internalurl |        http://aio51:9292         |
+|  publicurl  |        http://aio51:9292         |
+|    region   |            regionOne             |
+|  service_id | 96d1583e720f4104855f624c3a2af733 |
++-------------+----------------------------------+
+
+Step 9:
+Create the database tables for the Image Service:
+su -s /bin/sh -c "glance-manage db_sync" glance
+
+Step 10:
+Restart the glance service with its new settings.
+service glance-registry restart
+service glance-api restart
+Verify the Image Service Installation:
+
+Step 11:
+Download the image into a dedicated directory using wget or curl:
+mkdir images
+cd images/
+wget http://10.1.1.92/images/cirros-0.3.2-x86_64-disk.img
+
+Step 12:
+Upload the image into Image service
+glance image-create --name="CirrOS 0.3.2" --disk-format=qcow2 --container-format=bare --is-public=true < cirros-0.3.2-x86_64-disk.img
+Confirm that the image was uploaded and display its attributes:
++------------------+--------------------------------------+
+| Property         | Value                                |
++------------------+--------------------------------------+
+| checksum         | 64d7c1cd2b6f60c92c14662941cb7913     |
+| container_format | bare                                 |
+| created_at       | 2014-08-25T00:11:02                  |
+| deleted          | False                                |
+| deleted_at       | None                                 |
+| disk_format      | qcow2                                |
+| id               | dd1193c0-e365-41e1-b879-89b3eedb4575 |
+| is_public        | True                                 |
+| min_disk         | 0                                    |
+| min_ram          | 0                                    |
+| name             | CirrOS 0.3.2                         |
+| owner            | 6c7ecac71357496fabf959f70e0681b3     |
+| protected        | False                                |
+| size             | 13167616                             |
+| status           | active                               |
+| updated_at       | 2014-08-25T00:11:02                  |
+| virtual_size     | None                                 |
++------------------+--------------------------------------+
+glance image-list
++--------------------------------------+--------------+-------------+------------------+----------+--------+
+| ID                                   | Name         | Disk Format | Container Format | Size     | Status |
++--------------------------------------+--------------+-------------+------------------+----------+--------+
+| dd1193c0-e365-41e1-b879-89b3eedb4575 | CirrOS 0.3.2 | qcow2       | bare             | 13167616 | active |
++--------------------------------------+--------------+-------------+------------------+----------+--------+
+cd ..
+Image Service configured and image upload successfully.
