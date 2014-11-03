@@ -1,7 +1,8 @@
 OpenStack Boot Camp Course Lab Guide
 Version 2.07 – October 2014
 
-OneCloud Consulting 
+OneCloud Consulting
+www.onecloudinc.com
 
 *****  ATTENTION  *****
 The information contained in this guide is for training purposes only. This guide contains information and activities that, while beneficial for purposes of training in close, non-production environment, can result in downtime or other severe consequences and therefore are not intended as a reference guide. 
