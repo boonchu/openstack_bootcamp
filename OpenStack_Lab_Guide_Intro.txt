@@ -1,0 +1,169 @@
+OpenStack Boot Camp Course Lab Guide
+Version 2.07 – November 2014
+
+OneCloud Consulting 
+www.onecloudinc.com
+
+*****  ATTENTION  *****
+The information contained in this guide is for training purposes only. This guide contains information and activities that, while beneficial for purposes of training in close, non-production environment, can result in downtime or other severe consequences and therefore are not intended as a reference guide. 
+No part of this book may be reproduced in any form or by any means (graphic, electronic, mechanical, including photocopying, recording or taping, or storage in an electronic retrieval system) without permission of OneCloud Consulting.
+OneCloud Consulting reserves the right to change the contents herein without any prior notice.  
+
+-------------------------------------------------------------------------------------------------
+*****   Contents  *****
+-------------------------------------------------------------------------------------------------
+
+OpenStack Lab Overview
+Lab Topology
+OpenStack Labs – Flow
+Lab Access
+
+Lab 1: Identity Service Installation
+------------------------------------
+Objective:
+Basic Configuration	
+Openstack Packages
+Prerequisites for OpenStack
+NTP Server
+MySQL
+Messaging Queue Sever
+Identity Service Keystone
+Keystone Database
+Define users, tenants and roles
+Define services and service endpoints
+Verify the Identity service installation
+
+Lab 2: Image Service Installation
+---------------------------------
+Image Service Installation
+Create Database for Image Service
+User Creation
+Configure Image Service
+Define services and service endpoints
+Verify the Image Service Installation
+
+Lab 3: Compute Service Installation
+-----------------------------------
+Compute Service Installation
+Create Database for Compute Service
+Configure Compute Service
+Define services and service endpoints
+
+Lab 4: Network Service Neutron Installation
+-------------------------------------------
+Neutron Installation
+Database Creation
+Define services and service endpoints
+Configure Neutron Service
+
+Lab 5: Adding Compute Node
+--------------------------
+Basic Configuration
+
+Lab 6: Test Neutron/GRE tunnel
+------------------------------
+Launch an Instance
+
+Lab 7: Block Storage Service Installation
+-----------------------------------------
+Cinder Installation on AIO Node
+Create Database for Storage Service
+Define services and service endpoints
+Configure Cinder Service
+Configure physical hard disks
+Test Cinder Service
+
+Lab 8: Horizon Dashboard Installation
+-------------------------------------
+Install Horizon
+
+Lab 8a: Log in to the dashboard
+-------------------------------
+OpenStack dashboard—Project tab
+OpenStack dashboard—Admin tab
+
+Lab 8b: Upload and manage image
+-------------------------------
+Upload an image
+Update an image
+Delete an image
+
+Lab 8c: Configure access and security for instances
+---------------------------------------------------
+Add a rule to the default security group
+Add a key pair
+Import a key pair
+Allocate a floating IP address to an instance
+
+Lab 8d: Launch and manage instances
+-----------------------------------
+Launch an instance
+Connect to your instance by using SSH
+Track usage for instances
+Create an instance snapshot
+Manage an instance
+
+Lab 8e: Create and manage volumes
+---------------------------------
+Create a volume
+Attach a volume to an instance
+Detach a volume from an instance
+Create a snapshot from a volume
+Edit a volume
+Delete a volume
+
+Lab 8f: Create and manage networks
+----------------------------------
+Create a network
+Create a router
+
+Lab 9: Orchestration Service Installation
+-----------------------------------------
+Heat Installation on AIO Node
+Create Database for Orchestration Service
+Define services and service endpoints
+Configure Heat Service
+Verify the Orchestration service installation
+
+Lab 10: Telemetry Service Installation
+--------------------------------------
+Telemetry Module Installation on AIO Node
+Create Database for Telemetry Service
+Define services and service endpoints
+Configure Ceilometer Service
+Configure Compute agent for Telemetry
+Configure the Image Service for Telemetry
+Add Block Storage service agent for Telemetry
+Lab 10a: Telemetry Service Installation on Compute Node
+Install the Telemetry service on the compute node(ComputeY):
+Configure Ceilometer Service
+Verify the Telemetry service installation
+
+Lab 11: Install OpenStack with DevStack
+---------------------------------------
+
+-------------------------------------------------------------------------------------------------
+OpenStack Lab Overview
+-------------------------------------------------------------------------------------------------
+
+Lab Topology & OpenStack Labs Overview -  See OpenStack_Lab_Overview.pdf
+ 
+Lab Access
+
+VNC to the POD machines with credentials given by the Instructor
+( e.g. ssh localadmin@10.1.64.X)
+
+Each Student will have an AIOX node and ComputeY node installed with Ubuntu 14.04 
+SSH from the terminal on the virtual machine to the Ubuntu machines with following credentials (X and Y values for each User will be provided by Instructor)
+
+aioX Node
+
+IP Address: 10.1.64.1X  (eth0)
+User Name: localadmin
+Password: ubuntu
+
+ComputeY Node
+
+IP Address: 10.1.64.1Y  (eth0)
+User Name: localadmin
+Password: ubuntu
