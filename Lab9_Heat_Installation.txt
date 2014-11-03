@@ -1,0 +1,133 @@
+------------------------------------------------------------------------------------------------- 
+Lab 9: Orchestration Service (Heat) Installation
+-------------------------------------------------------------------------------------------------
+
+In Orchestration Service, we are installing and configuring orchestration service Heat.The Orchestration Service provides a template-based orchestration for describing a cloud application by running OpenStack API calls to generate running cloud applications. The software integrates other core components of OpenStack into a one-file template system. The templates enable you to create most OpenStack resource types, such as instances, floating IPs, volumes, security groups, users, and so on.
+
+SSH to AIO node with the credentials in Lab access
+Enter following command 
+
+Step 1:
+sudo su -
+source openrc.sh
+Heat Installation on AIO Node
+
+Step 2:
+On controller node install the orchestration module.
+apt-get install heat-api heat-api-cfn heat-engine -y
+Create Database for Orchestration Service
+
+Step 3:
+Create Database heat for Orchestration service by login to mysql with password as pass
+mysql -u root -ppass
+mysql> CREATE DATABASE heat;
+mysql> GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'localhost' IDENTIFIED BY 'pass';
+mysql> GRANT ALL PRIVILEGES ON heat.* TO 'heat'@'%' IDENTIFIED BY 'pass';
+mysql> exit
+
+Step 4:
+By default, the Ubuntu packages create a SQLite database. Delete the heat.sqlite file created in the /var/lib/heat/ directory so that it does not get used by mistake.
+rm /var/lib/heat/heat.sqlite
+
+Step 5:
+Create a heat user that the Orchestration service uses to authenticate with the Identity Service. Use the service tenant and give the user the admin role
+keystone user-create --name=heat --pass=pass --email=heat@onecloud.com
+keystone user-role-add --user=heat --tenant=service --role=admin
+keystone role-create --name heat_stack_user
+Define services and service endpoints
+Register the Heat and CloudFormation APIs with the Identity Service so that other OpenStack services can locate these APIs. Register the services and specify the endpoints:
+
+Step 6:
+keystone service-create --name=heat --type=orchestration --description="Orchestration"
+Note: Create service endpoint for the service. Change X with AIO node Number
+
+keystone endpoint-create \
+--service-id=$(keystone service-list | awk '/ orchestration / {print $2}') \
+--publicurl=http://aioX:8004/v1/%\(tenant_id\)s \
+--internalurl=http://aioX:8004/v1/%\(tenant_id\)s \
+--adminurl=http://aioX:8004/v1/%\(tenant_id\)s
+
+Similarly register a service and endpoint for heat-cfn.
+
+keystone service-create --name=heat-cfn --type=cloudformation \
+  --description="Orchestration CloudFormation"
+Note: copy the service id and use it create the service end point
+keystone endpoint-create \
+--service-id=$(keystone service-list | awk '/ cloudformation / {print $2}') \
+--publicurl=http://aioX:8000/v1 \
+--internalurl=http://aioX:8000/v1 \
+--adminurl=http://aioX:8000/v1
+Configure Heat Service
+Edit /etc/heat/heat.conf
+
+Step 7:
+vi /etc/heat/heat.conf
+Change the following in [DEFAULT], [keystone_authtoken], [ec2authtoken]
+ and [database] sections
+
+[DEFAULT]
+...
+rabbit_host = aioX
+rabbit_password = pass
+...
+heat_metadata_server_url = http://10.1.64.1X:8000
+heat_waitcondition_server_url = http:// 10.1.64.1X:8000/v1/waitcondition
+
+[database]
+connection = mysql://heat:pass@aioX/heat
+
+[keystone_authtoken]
+auth_host = aioX
+auth_port = 35357
+auth_protocol = http
+auth_uri = http://aioX:5000/v2.0
+admin_tenant_name = service
+admin_user = heat
+admin_password = pass
+
+[ec2authtoken]
+auth_uri = http://aioX:5000/v2.0
+
+Step 8:
+su -s /bin/sh -c "heat-manage db_sync" heat 
+service heat-api restart
+service heat-api-cfn restart
+service heat-engine restart
+Verify the Orchestration service installation
+
+Step 9:
+Create a test template in the test-stack.yml file with the following content:
+vi test-stack.yml
+Copy following content to the test-stack.yml:
+heat_template_version: 2013-05-23
+
+description: Simple template to deploy a single compute instance
+
+resources:
+  my_instance:
+    type: OS::Nova::Server
+    properties:
+      name: Stack-VM
+      key_name: mykey
+      image: CirrOS 0.3.2
+      flavor: m1.tiny
+Use the heat stack-create command to create a stack from this template:
+heat stack-create -f test-stack.yml Stack1
+Verify that the stack was created successfully with the heat stack-list command:
+heat stack-list
++--------------------------------------+------------+-----------------+----------------------+
+| id                                   | stack_name | stack_status    | creation_time        |
++--------------------------------------+------------+-----------------+----------------------+
+| 847ee6a4-61ff-4bbe-953a-7d080cbac2f8 | Stack1     | CREATE_COMPLETE | 2014-08-30T15:08:15Z |
++--------------------------------------+------------+-----------------+----------------------+
+
+Step 10:
+Log on to Openstack Dashboard by Opening the webbrowser and type http://aio node IP address/horizon. Type user name as admin and password as pass
+
+Goto Project → Orchestration → Stacks
+Click on Stack1
+ 
+This will create a new instance Stack-VM as described in the Stack1 template.
+Goto Project → Compute → Instance
+ 
+Now Orchestration service is installed and working successfully.
