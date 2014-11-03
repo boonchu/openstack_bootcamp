@@ -1,0 +1,234 @@
+-------------------------------------------------------------------------------------------------
+Lab 5: Adding Compute Node
+-------------------------------------------------------------------------------------------------
+
+We are going add ComputeY as a compute node to the AIOX node and installing Neutron agent to ComputeY
+Basic Configuration
+Check the Network settings of ComputeY node 
+SSH to ComputeY node with the credentials in Lab access
+Enter the following command and Type pass as the [sudo] password 
+
+Step 1: 
+sudo su –
+vi /etc/network/interfaces
+Enter the network details for the ComputeY node as shown below. 
+auto eth0
+iface eth0 inet static
+	address 10.1.64.1Y
+	netmask 255.255.255.0
+	gateway 10.1.64.1
+	dns-nameservers 10.1.1.92
+	dns-search onecloud
+auto eth1
+iface eth1 inet static
+	address 10.1.65.1Y
+	netmask 255.255.255.0
+auto eth2
+iface eth2 inet manual
+  up ip link set dev $IFACE up
+  down ip link set dev $IFACE down
+
+Check the /etc/hosts file and add ip address and host name for aio node.
+
+Step 2: 
+vi /etc/hosts
+Edit the file as follows
+10.1.64.1X	aioX.onecloud		aioX
+10.1.64.1Y	computeY.onecloud		computeY
+
+Step 3: 
+Edit /etc/sysctl.conf file and run the following command to activate changes:
+
+vi /etc/sysctl.conf
+net.ipv4.conf.all.rp_filter=0
+net.ipv4.conf.default.rp_filter=0
+
+sysctl –p
+net.ipv4.conf.all.rp_filter = 0
+net.ipv4.conf.default.rp_filter = 0
+net.ipv6.conf.default.autoconf = 0
+net.ipv6.conf.default.accept_ra = 0
+net.ipv6.conf.all.autoconf = 0
+net.ipv6.conf.all.accept_ra = 0
+
+Step 4: 
+Install Openstack Packages in Compute Node
+ 
+ntpdate gw.onecloud
+25 Aug 19:01:19 ntpdate[1837]: adjust time server 10.1.64.1 offset 0.026366 sec
+apt-get install -y ntp
+echo “server gw.onecloud iburst” > /etc/ntp.conf
+service ntp restart
+apt-get update && apt-get dist-upgrade -y 
+Note, if doing this outside the lab, you’ll also want to do the following to add the Ubuntu cloud archives:
+# add-apt-repository cloud-archive:Icehouse
+Step 5: 
+Install Nova Hypervisor and Network plugins
+
+apt-get install -y neutron-common neutron-plugin-ml2 neutron-plugin-openvswitch-agent openvswitch-datapath-dkms 
+apt-get install -y nova-compute-kvm python-novaclient python-guestfs
+dpkg-statoverride  --update --add root root 0644 /boot/vmlinuz-$(uname -r)
+
+
+Step 6: 
+Create openrc.sh file 
+cd
+vi ~/openrc.sh
+Type the following lines in openrc.sh file
+export OS_USERNAME=admin
+export OS_PASSWORD=pass
+export OS_TENANT_NAME=admin
+export OS_AUTH_URL=http://aioX:35357/v2.0
+	
+Save the file by pressing Esc key and then type :wq
+
+source ~/openrc.sh
+
+Step 7: 
+Edit /etc/nova/nova.conf and add to the [DEFAULT] section
+
+vi /etc/nova/nova.conf
+[DEFAULT]
+vif_plugging_is_fatal=false
+vif_plugging_timeout=0
+auth_strategy=keystone
+rpc_backend = rabbit
+rabbit_host = aioX
+rabbit_password = pass
+
+my_ip=10.1.64.1Y
+vnc_enabled=True
+vncserver_listen=0.0.0.0
+vncserver_proxyclient_address=10.1.64.1Y
+novncproxy_base_url=http://10.1.64.1X:6080/vnc_auto.html
+
+glance_host=aioX
+
+#networking
+network_api_class = nova.network.neutronv2.api.API
+neutron_url = http://aioX:9696
+neutron_auth_strategy = keystone
+neutron_admin_tenant_name = service
+neutron_admin_username = neutron
+neutron_admin_password = pass
+neutron_admin_auth_url = http://aioX:35357/v2.0
+linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
+firewall_driver = nova.virt.firewall.NoopFirewallDriver
+security_group_api = neutron 
+
+[database]
+connection = mysql://nova:pass@aioX/nova
+
+Step 8: 
+Edit the [libvirt] section in the /etc/nova/nova-compute.conf
+ vi /etc/nova/nova-compute.conf
+virt_type=qemu
+Press Esc and Type :wq to Save the file.
+
+Step 9: 
+Edit the file /etc/neutron/neutron.conf
+
+vi /etc/neutron/neutron.conf
+auth_strategy = keystone
+core_plugin = ml2
+rpc_backend = neutron.openstack.common.rpc.impl_kombu
+rabbit_host = aioX
+rabbit_password = pass
+
+[keystone_authtoken]
+auth_uri = http://aioX:35357/v2.0
+auth_host = aioX
+auth_protocol = http
+auth_port = 35357
+admin_tenant_name = service
+admin_user = neutron
+admin_password = pass
+
+[database]
+connection = mysql://neutron:pass@aioX/neutron
+
+Step 10: 
+The ML2 plug-in uses the Open vSwitch (OVS) mechanism (agent) to build the virtual networking framework for instances.
+Edit the /etc/neutron/plugins/ml2/ml2_conf.ini file:
+Add the following keys to the [ml2] section:
+ [ml2]
+type_drivers = gre
+tenant_network_types = gre
+mechanism_drivers = openvswitch
+
+[ml2_type_gre]
+tunnel_id_ranges = 1:1000
+
+[ovs]
+local_ip = INSTANCE_TUNNELS_INTERFACE_IP_ADDRESS #replace with eth1 IP address
+tunnel_type = gre
+enable_tunneling = True
+
+[securitygroup]
+firewall_driver = neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+enable_security_group = True
+
+Step 11: 
+Create a bridge for internal communication and restart the services
+
+service nova-compute restart
+service openvswitch-switch restart
+service neutron-plugin-openvswitch-agent restart
+
+Step 12: 
+Source the openrc.sh file
+source ~/openrc.sh
+
+Step 13: 
+Type following command and check the new Compute node is listed 
+
+nova service-list
+ +------------------+-----------+----------+---------+-------+----------------------------+-----------------+
+| Binary           | Host      | Zone     | Status  | State | Updated_at                 | Disabled Reason |
++------------------+-----------+----------+---------+-------+----------------------------+-----------------+
+| nova-cert        | aio51     | internal | enabled | up    | 2014-08-25T19:25:46.000000 | -               |
+| nova-consoleauth | aio51     | internal | enabled | up    | 2014-08-25T19:25:46.000000 | -               |
+| nova-scheduler   | aio51     | internal | enabled | up    | 2014-08-25T19:25:44.000000 | -               |
+| nova-conductor   | aio51     | internal | enabled | up    | 2014-08-25T19:25:48.000000 | -               |
+| nova-compute     | aio51     | nova     | enabled | up    | 2014-08-25T19:25:46.000000 | -               |
+| nova-compute     | compute61 | nova     | enabled | up    | 2014-08-25T19:25:48.000000 | -               |
++------------------+-----------+----------+---------+-------+----------------------------+-----------------+
+
+neutron agent-list	
++--------------------------------------+--------------------+-----------+-------+----------------+
+| id                                   | agent_type         | host      | alive | admin_state_up |
++--------------------------------------+--------------------+-----------+-------+----------------+
+| 431efefa-a00c-485a-b788-a560f6f73134 | Open vSwitch agent | aio51     | :-)   | True           |
+| 6e6a914e-f2cb-43a4-9014-57bd9222af17 | DHCP agent         | aio51     | :-)   | True           |
+| 9865554f-bce0-4b5e-aed6-88626a24a9ec | L3 agent           | aio51     | :-)   | True           |
+| a4850201-79ba-4e7a-aeb1-05cfc3bd8695 | Metadata agent     | aio51     | :-)   | True           |
+| ae466dc9-93b2-4b35-816d-7b97d60da398 | Open vSwitch agent | compute61 | :-)   | True           |
++--------------------------------------+--------------------+-----------+-------+----------------+
+
+ovs-vsctl show
+Bridge br-int
+        fail_mode: secure
+        Port br-int
+            Interface br-int
+                type: internal
+        Port patch-tun
+            Interface patch-tun
+                type: patch
+                options: {peer=patch-int}
+    Bridge br-tun
+        Port br-tun
+            Interface br-tun
+                type: internal
+        Port "gre-0a000205"
+            Interface "gre-0a000205"
+                type: gre
+                options: {in_key=flow, local_ip="10.0.2.4", out_key=flow, remote_ip="10.0.2.5"}
+        Port patch-int
+            Interface patch-int
+                type: patch
+                options: {peer=patch-tun}
+    ovs_version: "2.0.1"
+
+The output should shows GRE, local_ip and remote_ip.
+
+Now ComputeY is successfully added to AIO node as a Compute Node.
