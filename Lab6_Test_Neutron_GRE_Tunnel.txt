@@ -88,7 +88,7 @@ Step 4:
 Create one VM in each host 
 Note: Change X and Y Values with your Aio and Compute numbers
 nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:aioX --key_name mykey test-aio
-nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:computeY --key_name mykey test-compute
+nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:ComputeY --key_name mykey test-compute
 Check to see if the VMs were spun up correctly 
 
 nova list 
