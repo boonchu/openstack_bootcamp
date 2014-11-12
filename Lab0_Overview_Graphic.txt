@@ -3,3 +3,6 @@ Lab Guide Overview
 Download pdf from here:
 
 http://tinyurl.com/nnhufgu
+
+Or, within the github repository, find the file:
+OpenStack_Lab_Overview.pdf
