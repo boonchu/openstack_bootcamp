@@ -1,5 +1,6 @@
 OpenStack Boot Camp Course Lab Guide
 Version 2.07 – October 2014
+Ubuntu command version
 
 OneCloud Consulting
 www.onecloudinc.com
