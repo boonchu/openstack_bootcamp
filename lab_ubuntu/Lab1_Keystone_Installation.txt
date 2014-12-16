@@ -62,8 +62,7 @@ apt-get install python-software-properties -y
 apt-get update && apt-get dist-upgrade -y
 
 Step 4: 
-Reboot the machine
-Type following command to restart network service 
+Type following command to restart network interfaces
 ifdown eth1; ifup eth1; ifdown eth2; ifup eth2
 ifdown: interface eth1 not configured
 ifdown: interface eth2 not configured 
@@ -136,7 +135,6 @@ Step 10:
 Change the default guest password of RabbitMQ to pass
 rabbitmqctl change_password guest pass
 service rabbitmq-server restart
-reboot
 Identity Service Keystone
 
 Step 11:
