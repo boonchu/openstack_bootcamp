@@ -2,11 +2,9 @@
 Lab 5: Adding Compute Node
 -------------------------------------------------------------------------------------------------
 
-We are going add ComputeY as a compute node to the AIOX node and installing Neutron agent to ComputeY
+We are now going add ComputeY as a compute node to the OpenStack install. Please see the lab topology diagram and the beginning of the guide to see the network adapters the ComputeY node will have.
 Basic Configuration
-Check the Network settings of ComputeY node 
-SSH to ComputeY node with the credentials in Lab access
-Enter the following command and Type pass as the [sudo] password 
+SSH to ComputeY node with the credentials provided earlier.
 
 Step 1: 
 sudo su –
@@ -14,30 +12,26 @@ vi /etc/network/interfaces
 Enter the network details for the ComputeY node as shown below. 
 auto eth0
 iface eth0 inet static
-	address 10.1.64.1Y
+	address 10.1.64.Y
 	netmask 255.255.255.0
 	gateway 10.1.64.1
 	dns-nameservers 10.1.1.92
 	dns-search onecloud
 auto eth1
 iface eth1 inet static
-	address 10.1.65.1Y
+	address 10.1.65.Y
 	netmask 255.255.255.0
 auto eth2
 iface eth2 inet manual
   up ip link set dev $IFACE up
   down ip link set dev $IFACE down
 
-Reset the network interfaces:
-ifdown eth1; ifup eth1; ifdown eth2; ifup eth2; ifdown eth0; ifup eth0
-
 Check the /etc/hosts file and add ip address and host name for aio node.
-
 Step 2: 
 vi /etc/hosts
 Edit the file as follows
-10.1.64.1X	aioX.onecloud		aioX
-10.1.64.1Y	computeY.onecloud		computeY
+10.1.64.X	aioX.onecloud		aioX
+10.1.64.Y	computeY.onecloud		computeY
 
 Step 3: 
 Edit /etc/sysctl.conf file and run the following command to activate changes:
@@ -46,6 +40,7 @@ vi /etc/sysctl.conf
 net.ipv4.conf.all.rp_filter=0
 net.ipv4.conf.default.rp_filter=0
 
+Enter the below command to confirm changes made.
 sysctl –p
 net.ipv4.conf.all.rp_filter = 0
 net.ipv4.conf.default.rp_filter = 0
@@ -54,28 +49,35 @@ net.ipv6.conf.default.accept_ra = 0
 net.ipv6.conf.all.autoconf = 0
 net.ipv6.conf.all.accept_ra = 0
 
+Type following command to restart network service 
+ifdown eth1; ifup eth1; ifdown eth2; ifup eth2
+ifdown: interface eth1 not configured
+ifdown: interface eth2 not configured 
+Note: it is ok if the system complains about interfaces not being configured in the previous step. You can execute “ifconfig –a” to check interface IP address assignments.
+
 Step 4: 
-Install Openstack Packages in Compute Node
+Install NTP Package in Compute Node
  
 ntpdate gw.onecloud
 25 Aug 19:01:19 ntpdate[1837]: adjust time server 10.1.64.1 offset 0.026366 sec
+Note: It might take 15-20 seconds for the command to complete
 apt-get install -y ntp
 echo “server gw.onecloud iburst” > /etc/ntp.conf
 service ntp restart
+Execute the below command to update the OS distribution
 apt-get update && apt-get dist-upgrade -y 
 Note, if doing this outside the lab, you’ll also want to do the following to add the Ubuntu cloud archives:
 # add-apt-repository cloud-archive:Icehouse
 Step 5: 
-Install Nova Hypervisor and Network plugins
+Install Nova Hypervisor and Network plugins on the ComputeY node.
 
-apt-get install -y neutron-common neutron-plugin-ml2 neutron-plugin-openvswitch-agent openvswitch-datapath-dkms 
+Note: The below is very similar to what we did on the AIO node as the AIO node is also a compute node.
+
+apt-get install -y neutron-common neutron-plugin-ml2 neutron-plugin-openvswitch-agent 
 apt-get install -y nova-compute-kvm python-novaclient python-guestfs
 dpkg-statoverride  --update --add root root 0644 /boot/vmlinuz-$(uname -r)
-
-
 Step 6: 
 Create openrc.sh file 
-cd
 vi ~/openrc.sh
 Type the following lines in openrc.sh file
 export OS_USERNAME=admin
@@ -86,7 +88,6 @@ export OS_AUTH_URL=http://aioX:35357/v2.0
 Save the file by pressing Esc key and then type :wq
 
 source ~/openrc.sh
-
 Step 7: 
 Edit /etc/nova/nova.conf and add to the [DEFAULT] section
 
@@ -99,11 +100,11 @@ rpc_backend = rabbit
 rabbit_host = aioX
 rabbit_password = pass
 
-my_ip=10.1.64.1Y
+my_ip=10.1.64.Y
 vnc_enabled=True
 vncserver_listen=0.0.0.0
-vncserver_proxyclient_address=10.1.64.1Y
-novncproxy_base_url=http://10.1.64.1X:6080/vnc_auto.html
+vncserver_proxyclient_address=10.1.64.Y
+novncproxy_base_url=http://10.1.64.X:6080/vnc_auto.html
 
 glance_host=aioX
 
@@ -127,13 +128,11 @@ Edit the [libvirt] section in the /etc/nova/nova-compute.conf
  vi /etc/nova/nova-compute.conf
 virt_type=qemu
 Press Esc and Type :wq to Save the file.
-
 Step 9: 
-Edit the file /etc/neutron/neutron.conf
+Edit the file /etc/neutron/neutron.conf to specify the rabbit_host, keystone and the database information.
 
 vi /etc/neutron/neutron.conf
 auth_strategy = keystone
-core_plugin = ml2
 rpc_backend = neutron.openstack.common.rpc.impl_kombu
 rabbit_host = aioX
 rabbit_password = pass
@@ -177,11 +176,9 @@ Create a bridge for internal communication and restart the services
 service nova-compute restart
 service openvswitch-switch restart
 service neutron-plugin-openvswitch-agent restart
-
 Step 12: 
 Source the openrc.sh file
 source ~/openrc.sh
-
 Step 13: 
 Type following command and check the new Compute node is listed 
 
@@ -232,6 +229,7 @@ Bridge br-int
                 options: {peer=patch-tun}
     ovs_version: "2.0.1"
 
-The output should shows GRE, local_ip and remote_ip.
+The output shows GRE, local_ip and remote_ip.
 
-Now ComputeY is successfully added to AIO node as a Compute Node.
+ComputeY is successfully added to AIO node as a Compute Node.
+
