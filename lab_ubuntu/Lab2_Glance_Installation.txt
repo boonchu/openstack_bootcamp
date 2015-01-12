@@ -2,35 +2,34 @@
 *****   Lab 2: Image Service (Glance) Installation   *****
 -------------------------------------------------------------------------------------------------
 
-The OpenStack Image Service enables users to storage and retrieve Operating Systems (virtual machine images), also known as the Glance project. The Image Service offers a REST API that enables you to query Virtual Machine Images and its metadata. Images can be stored in a variety of locations from simple file systems to object – storage systems like Openstack Object Storage.
-This lab configures the Image Service to use the file backend. Images uploaded to the Image Service will be stored in a directory on the same system that hosts the service. By default this directory is/var/lib/glance/images/.
-
+OpenStack Image Service (Glance) provides discovery, registration, and delivery services for disk and server images.
+The Image Service offers a REST API that enables you to query Virtual Machine Images and its metadata. Images can be stored in a variety of locations from simple file systems to object – storage systems like OpenStack Object Storage.
+This lab configures the Image Service to use the file backend which makes the images stored in a directory on the same system that hosts the service. By default this directory is/var/lib/glance/images/.
 Image Service Installation
-
 Step 1:
 SSH to AIO node with the credentials in Lab access
 Enter following command and Type pass as the [sudo] password 
-sudo su -
+sudo su –
+Execute the following command to source the environmental variables.
 source ~/openrc.sh
+Execute the following command to install the glance package and also the python glance client.
 apt-get install glance python-glanceclient -y
 Create Database for Image Service
-
 Step 2:
-The Image Service stores information about images in a database. Create Keystone database by login to mysql with password as pass
+The Image Service stores information about images in a database. 
+Create glance database by logging to mysql with password as pass
 mysql -uroot -ppass
 CREATE DATABASE glance;
 GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY 'pass';
 GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY 'pass';
 exit
-
 Step 3:
 By default, the Ubuntu packages create a SQLite database. Delete the glance.sqlite file created in the /var/lib/glance/ directory so that it does not get used by mistake.
 rm /var/lib/glance/glance.sqlite
-rm: cannot remove â/var/lib/glance/glance.sqliteâ: No such file or directory
-Note: This file may not exist in your system
+Note: This file may not exist in your system which might give you the below error
+rm: cannot remove /var/lib/glance/glance.sqlite: No such file or directory
 User Creation
 Create a glance user that the Image Service can use to authenticate with the Identity Service. 
-
 Step 4:
 Choose a password as pass and specify an email address for the glance user. Use service as tenant and admin as role.
 keystone user-create --name=glance --pass=pass --email=glance@onecloud.com
@@ -45,27 +44,27 @@ keystone user-create --name=glance --pass=pass --email=glance@onecloud.com
 +----------+----------------------------------+
 keystone user-role-add --user=glance --tenant=service --role=admin
 Configure Image Service
-The Image Service provides the glance-api and glance-registry services, each with its own configuration file glance-api.conf and glance-registry.conf
+The configuration files for glance are kept in “/etc/glance”.
+The Image Service provides the glance-api and glance-registry services, each with its own configuration file glance-api.conf and glance-registry.conf.
 Update glance-api.conf and glance-registry.conf
-
 Step 5:
 Edit /etc/glance/glance-api.conf
 vi /etc/glance/glance-api.conf
-/rabbit_host to find and change the rabbit host details as below
+“/rabbit_host” to find and change the rabbit host details as below
 rpc_backend = rabbit
 rabbit_host = aioX
 rabbit_userid = guest
 rabbit_password = pass
-
 Step 6:
-Configure the location of the database.
-Search for the [database] section: /[database] and add the sql connection information as follows:
+Configure the location of the database that was created in Step 2.
+Search for the [database] section and add the sql connection information as follows:
 #sqlite_db = /var/lib/glance/glance.sqlite
 connection = mysql://glance:pass@aioX/glance
 
 Note: You need to comment out the sqlite path if it exists.
  
-Press Down Arrow key to Scroll down up to [keystone_authtoken] section. To configure the Image Service to use the Identity Service for authentication, edit the following keys under the [keystone_authtoken] section 
+To configure the Image Service to use the Identity Service for authentication, you need to specify the keystone end-point details.
+Press Down Arrow key to Scroll down up to [keystone_authtoken] section.
 auth_uri = http://aioX:5000
 auth_host = aioX
 auth_port=35357
@@ -82,12 +81,12 @@ Press Esc key and Type :wq to save the file.
 Step 7:
 Similarly edit /etc/glance/glance-registry.conf
 vi /etc/glance/glance-registry.conf
-Follow the instructions in Step 6 to finish this task.
+Follow the instructions in Step 6 to update the [database] and [keystone_authtoken] sections to finish this task.
 Define services and service endpoints
 Register the Image Service with the Identity Service so that other OpenStack services can locate it. 
-
 Step 8:
 Register the service and create the endpoint:
+Registering a service with keystone is done with the “keystone service-create” command.
 keystone service-create --name=glance --type=image --description="Glance Image Service"
 +-------------+----------------------------------+
 |   Property  |              Value               |
@@ -98,9 +97,9 @@ keystone service-create --name=glance --type=image --description="Glance Image S
 |     name    |              glance              |
 |     type    |              image               |
 +-------------+----------------------------------+
-Note: Service id to use in endpoint-create command
 
-Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ image / {print $2}' to get the service id of type image.
+Creating an end-point for the service is done with the “keystone endpoint-create” command which takes the service id (generated by the “keystone service-create” command) as an argument.
+Note: Copy the Service id to use in endpoint-create command OR we can use keystone service-list | awk '/ image / {print $2}' to get the service id of type image.
 Note: Change X with AIO node Number
 keystone endpoint-create --service-id=$(keystone service-list | awk '/ image / {print $2}') --publicurl=http://aioX:9292 --internalurl=http://aioX:9292 --adminurl=http://aioX:9292
 +-------------+----------------------------------+
@@ -114,24 +113,32 @@ keystone endpoint-create --service-id=$(keystone service-list | awk '/ image / {
 |  service_id | 96d1583e720f4104855f624c3a2af733 |
 +-------------+----------------------------------+
 
+Note: With the above, the endpoint is listening on TCP port 9292
 Step 9:
 Create the database tables for the Image Service:
+Using the “db_sync” argument with glance-manage, one populates the tables in the “glance” database which was created earlier.
 su -s /bin/sh -c "glance-manage db_sync" glance
+Note: If you get an error like “CRITICAL glance [-] ValueError: Tables "migrate_version" have non utf8 collation, please make sure all tables are CHARSET=utf8” you can change the CHARSET in mysql by
+mysql -uroot –ppass
+use glance;
+alter table migrate_version convert to character set utf8 collate utf8_unicode_ci;
+flush privileges;
+quit
+and then executing the “glance-manage db_sync” command given above.
 
 Step 10:
 Restart the glance service with its new settings.
 service glance-registry restart
 service glance-api restart
-Verify the Image Service Installation:
-
+You can validate the service running by executing “ps –ef | grep glance” to see the service running.
+Importing Images:
 Step 11:
 Download the image into a dedicated directory using wget or curl:
 mkdir images
 cd images/
 wget http://10.1.1.92/images/cirros-0.3.2-x86_64-disk.img
-
 Step 12:
-Upload the image into Image service
+Import the image into Image service
 glance image-create --name="CirrOS 0.3.2" --disk-format=qcow2 --container-format=bare --is-public=true < cirros-0.3.2-x86_64-disk.img
 Confirm that the image was uploaded and display its attributes:
 +------------------+--------------------------------------+
@@ -155,6 +162,7 @@ Confirm that the image was uploaded and display its attributes:
 | updated_at       | 2014-08-25T00:11:02                  |
 | virtual_size     | None                                 |
 +------------------+--------------------------------------+
+Notice the image metadata which is set by the Image creator. This metadata information influences the scheduling of compute resources.
 glance image-list
 +--------------------------------------+--------------+-------------+------------------+----------+--------+
 | ID                                   | Name         | Disk Format | Container Format | Size     | Status |
@@ -163,3 +171,9 @@ glance image-list
 +--------------------------------------+--------------+-------------+------------------+----------+--------+
 cd ..
 Image Service configured and image upload successfully.
+
+For the inquisitive mind:
+•	Navigate to “/var/lib/glance/images” and execute “ls” and “file *”. Why is that file there and what type is it?
+•	Execute “glance --debug image-list” and walkthrough the output.
+•	What all OpenStack services do we have running now? Execute “keystone service-list or endpoint-list” to find out.
+•	Explore the log files in the “/var/log/glance” directory.
