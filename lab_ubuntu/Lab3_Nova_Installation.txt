@@ -2,29 +2,34 @@
 *****   Lab 3: Compute Service (Nova) Installation   *****
 -------------------------------------------------------------------------------------------------
 
-The Compute service is a cloud computing fabric controller, which is the main part of an IaaS system. Use it to host and manage cloud computing systems.
+The Compute service is a cloud computing fabric controller, which is the main part of an IaaS system. 
 Compute interacts with the Identity Service for authentication, Image Service for images, and the Dashboard for the user and administrative interface. Access to images is limited by project and by user; quotas are limited per project (for example, the number of instances). The Compute service scales horizontally on standard hardware, and downloads images to launch instances as required.
 Compute Service Installation
-SSH to AIO node with the credentials in Lab access
+SSH to AIO node with the credentials in Lab access sheet.
 Enter following command and Type pass as the [sudo] password
-
 Step 1:
 sudo su -
 source ~/openrc.sh
 Install Compute Controller Service packages
-
 Step 2:
-Install these Compute packages, which provide the Compute services that run on the controller node.
-apt-get install nova-api nova-cert nova-conductor nova-consoleauth nova-novncproxy nova-scheduler python-novaclient -y
+Install the below Compute packages which provide the Compute services that run on the controller node.
+apt-get install nova-api nova-cert nova-conductor nova-consoleauth nova-novncproxy nova-scheduler python-novaclient –y
+nova-api: Accepts and responds to end user compute API calls.
+nova-cert: Manages x509 certificates
+nova-conductor: Enables OpenStack to function without compute nodes accessing the database
+nova-consoleauth : Authorizes tokens for users that console proxies provide.
+nova-novncproxy: Provides a proxy for accessing running instances through a VNC connection using a web browser.
+nova-scheduler: determines how to dispatch compute and volume requests.
+python-novaclient: Client library for OpenStack Compute API.
 Install Compute Node packages
-
 Step 3:
-Install the appropriate packages for the Compute service.
+Install the appropriate packages for the Compute service as we will be using KVM as the hypervisor.
 apt-get install nova-compute-kvm python-guestfs -y
+nova-compute-kvm : the compute package for KVM as the hypervisor
+python-guestfs: Guest disk image management library.
 To make the current kernel readable, run the following command
 dpkg-statoverride  --update --add root root 0644 /boot/vmlinuz-$(uname -r)
 Create Database for Compute Service
-
 Step 4:
 Create Database nova for Compute service by login to mysql with password as pass
 mysql -uroot -ppass
@@ -32,11 +37,9 @@ CREATE DATABASE nova;
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY 'pass';
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY 'pass';
 exit
-
 Step 5:
 By default, the Ubuntu packages create a SQLite database. Delete the nova.sqlite file created in the /var/lib/nova/ directory so that it does not get used by mistake.
 rm /var/lib/nova/nova.sqlite
-
 Step 6:
 Create a nova user that Compute uses to authenticate with the Identity Service. Use the service tenant and give the user the admin role: (X Student POD Number)
 keystone user-create --name=nova --pass=pass --email=nova@onecloud.com
@@ -53,29 +56,30 @@ keystone user-create --name=nova --pass=pass --email=nova@onecloud.com
 keystone user-role-add --user=nova --tenant=service --role=admin
 Configure Compute Service
 Update nova.conf 
-
 Step 7:
 Edit /etc/nova/nova.conf 
 vi /etc/nova/nova.conf
-Configure the Compute Service to use the RabbitMQ message broker by adding these configuration keys at the end of [DEFAULT] section
+Configure the Compute Service to use the RabbitMQ message broker by adding these configuration keys at the end of [DEFAULT] section.
+The message broker as you recall is running on the AIO node.
 
 vif_plugging_is_fatal=false
 vif_plugging_timeout=0
 rpc_backend =rabbit
 rabbit_host=aioX
 rabbit_password=pass
-Add the my_ip, vncserver_listen, and vncserver_proxyclient_address configuration options to to the [DEFAULT] section: To get vnc acces from the pod machine give IP address instead of hostname.
-my_ip=10.1.64.1X
+Add the my_ip, vncserver_listen, and vncserver_proxyclient_address configuration options to the [DEFAULT] section: To get VNC access from the POD machine enter IP address instead of hostname.
+my_ip=10.1.64.X
 vnc_enabled = True
-vncserver_listen=10.1.64.1X
-vncserver_proxyclient_address=10.1.64.1X
-novncproxy_base_url=http://10.1.64.1X:6080/vnc_auto.html
+vncserver_listen=10.1.64.X
+vncserver_proxyclient_address=10.1.64.X
+novncproxy_base_url=http://10.1.64.X:6080/vnc_auto.html
 
 auth_strategy=keystone
 glance_host=aioX
 
 
-To configure the location of the database, add following lines to the [database] and [keystone_authtoken] section: 
+To configure the location of the database, add following lines to the [database] and [keystone_authtoken] section.
+Note: You will have to create these sections as they do not exist in the default nova.conf.
 
 [database]
 connection = mysql://nova:pass@aioX/nova
@@ -88,19 +92,23 @@ auth_protocol = http
 admin_tenant_name = service
 admin_user = nova
 admin_password = pass
+The database section specifies the database to use which in this case is MySQL running on the AIO node.
+The keystone_authtoken specifies the keystone service end-point and the credentials that nova will use to authenticate with.
 Press Esc and Type :wq to Save the file.
 Edit Nova-Compute.Conf
-
 Step 8:
-Edit the [libvirt] section in the /etc/nova/nova-compute.conf
+In this lab, the controller (AIO node) will also be a compute node. A compute node is a node which hosts virtual machine instances and it runs the nova-compute daemon.
+In this case we will be using QEMU as the hypervisor. Edit the [libvirt] section in the /etc/nova/nova-compute.conf
 vi /etc/nova/nova-compute.conf
 virt_type=qemu
 Press Esc and Type :wq to Save the file.
 Define services and service endpoints
 Register the Compute service and specify the endpoint: (X Student POD Number)
-
 Step 9:
 keystone service-create --name=nova --type=compute --description="Nova Compute service"
+
+
+
 +-------------+----------------------------------+
 |   Property  |              Value               |
 +-------------+----------------------------------+
@@ -111,7 +119,7 @@ keystone service-create --name=nova --type=compute --description="Nova Compute s
 |     type    |             compute              |
 +-------------+----------------------------------+
 
-Note: Copy the Service id to use in endpoint-create command. Or we can use keystone service-list | awk '/ compute / {print $2}' to get the service id of type compute.
+Note: Copy the Service id to use in endpoint-create command OR we can use keystone service-list | awk '/ compute / {print $2}' to get the service id of type compute.
 
 
 Note: Change X with AIO node Number
@@ -139,3 +147,10 @@ service nova-conductor restart
 service nova-novncproxy restart 
 service nova-compute restart
 Compute Service is installed successfully.
+For the inquisitive mind:
+•	To see the list of physical hosts used by nova execute “nova host-list”
+•	Execute “nova --debug service-list” and walkthrough the output.
+•	What all OpenStack services do we have running now? Execute “keystone service-list or endpoint-list” to find out.
+•	What does “nova hypervisor-list” and “nova image-list” tell you?
+•	How will you find out the nova flavors defined?
+•	Explore the log files in the “/var/log/nova” directory.
