@@ -2,24 +2,27 @@
 Lab 7: Block Storage Service (Cinder) Installation
 -------------------------------------------------------------------------------------------------
 
-In Storage service, we are installing and configuring block storage service Cinder. The Block Storage Service enables management of volumes, volume snapshots, and volume types. The Block Storage Service interacts with Compute to provide volumes for instances.
+The Block Storage Service (Cinder) enables management of volumes, volume snapshots, and volume types. The Block Storage Service interacts with Compute to provide volumes for instances.
  
-SSH to AIO node with the credentials in Lab access
-Enter following command and Type ubuntu as the [sudo] password
-
 Step 1:
+SSH to AIO node with the credentials in Lab access
+Enter following command and Type ubuntu as the [sudo] password.
 sudo su -
 source ~/openrc.sh
 Cinder Installation on AIO Node
-In multinode environment install following OpenStack Block Storage services on the Controller node. The Storage node contains the disk that serves volumes. 
-
+In a multi node environment install following OpenStack Block Storage services on the Controller (AIO) node. The Storage node contains the disk that will serve volumes. 
 Step 2:
-You can configure OpenStack to use various storage systems. This Lab is using LVM.
+You can configure OpenStack to use various back end storage systems.  In this lab we will be using LVM (Logical Volume Manager) as the storage backend.  The LVM backend implements block storage as LVM logical partitions.
+Install the appropriate packages via apt-get.
 apt-get install -y cinder-api cinder-scheduler
+cinder-api – Responsible for receiving and handling the request.
+cinder-scheduler – Determines the volume server which will service the request.
 apt-get install -y lvm2 
+lvm2 - Provides logical volume management facilities on linux.
 apt-get install -y cinder-volume
-Create Database for Storage Service
+cinder-volume – Runs on the storage node and manages the storage space.
 
+Create Database for Storage Service
 Step 3:
 Create Database cinder for Storage service by login to mysql with password as pass
 mysql -u root -ppass
@@ -27,11 +30,9 @@ CREATE DATABASE cinder;
 GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'localhost' IDENTIFIED BY 'pass';
 GRANT ALL PRIVILEGES ON cinder.* TO 'cinder'@'%' IDENTIFIED BY 'pass';
 exit
-
 Step 4:
 By default, the Ubuntu packages create a SQLite database. Delete the cinder.sqlite file created in the /var/lib/cinder/ directory so that it does not get used by mistake.
 rm /var/lib/cinder/cinder.sqlite
-
 Step 5:
 Create a cinder user that Storage uses to authenticate with the Identity Service. Use the service tenant and give the user the admin role
 keystone user-create --name=cinder --pass=pass --email=cinder@onecloud.com
@@ -47,7 +48,6 @@ keystone user-create --name=cinder --pass=pass --email=cinder@onecloud.com
 
 keystone user-role-add --user=cinder --tenant=service --role=admin
 Define services and service endpoints
-
 Step 6:
 Register the Block Storage Service with the Identity Service so that other OpenStack services can locate it. Register the service and specify the endpoint.
 keystone service-create --name=cinder --type=volume --description="OpenStack Block Storage"
@@ -76,7 +76,9 @@ keystone endpoint-create --service-id=$(keystone service-list | awk '/ volume / 
 |    region   |             regionOne              |
 |  service_id |  a934854782f6481ba5b5ffe479a0e9cc  |
 +-------------+------------------------------------+
+
 Similarly register a service and endpoint for version 2 of the Block Storage service API.
+Multiple end points can exist for a single service where some clients could use v1 and others v2.
 
 keystone service-create --name=cinderv2 --type=volumev2 --description="OpenStack Block Storage v2"
 +-------------+----------------------------------+
@@ -104,11 +106,10 @@ keystone endpoint-create --service-id=$(keystone service-list | awk '/ volumev2 
 |  service_id |  3d7606abdd134e68bc81964796f43807  |
 +-------------+------------------------------------+
 Configure Cinder Service
-
 Step 7:
 Edit /etc/cinder/cinder.conf
 vi /etc/cinder/cinder.conf
-Change the following in [DEFAULT], [keystone_authtoken]  and [database] sections
+Change the following in [DEFAULT], [keystone_authtoken] and [database] sections
 
 [DEFAULT]
 rpc_backend = cinder.openstack.common.rpc.impl_kombu
@@ -131,7 +132,6 @@ admin_password = pass
 connection = mysql://cinder:pass@aioX/cinder
 
 Configure physical hard disks
-
 Step 8:
 Type following commands to configure physical disks and create cinder-vloumes
 dd if=/dev/zero of=/dev/sdb count=100 bs=1M	
@@ -179,12 +179,12 @@ Disk identifier: 0x00000000
 
 Disk /dev/mapper/aio51--vg-swap_1 doesn't contain a valid partition table
 
-Select the second disk and create physical volume and cinder volume group
+Select the second disk (/dev/sdb) to create physical volume and cinder volume group.
 pvcreate /dev/sdb
 vgcreate cinder-volumes /dev/sdb
 Volume group "cinder-volumes" successfully created
 
-pvdisplay
+pvdisplay /dev/sdb
 
 --- Physical volume ---
   PV Name               /dev/sdb
@@ -197,18 +197,9 @@ pvdisplay
   Allocated PE          0
   PV UUID               33ZiCg-9fR8-YucF-dVZe-l477-Coba-S8JFGa
 
-  --- Physical volume ---
-  PV Name               /dev/sda5
-  VG Name               aio51-vg
-  PV Size               19.76 GiB / not usable 2.00 MiB
-  Allocatable           yes
-  PE Size               4.00 MiB
-  Total PE              5058
-  Free PE               5
-  Allocated PE          5053
-  PV UUID               ZLqVnW-PDPy-rgwL-G2Yw-tfUR-s5cC-VGU2SG
+ 
 
-vgdisplay
+vgdisplay cinder-voumes
   --- Volume group ---
   VG Name               cinder-volumes
   System ID
@@ -230,26 +221,7 @@ vgdisplay
   Free  PE / Size       5119 / 20.00 GiB
   VG UUID               peIcCZ-i2bl-ncC3-cvb2-M49k-bp7G-wip1sY
 
-  --- Volume group ---
-  VG Name               aio51-vg
-  System ID
-  Format                lvm2
-  Metadata Areas        1
-  Metadata Sequence No  3
-  VG Access             read/write
-  VG Status             resizable
-  MAX LV                0
-  Cur LV                2
-  Open LV               2
-  Max PV                0
-  Cur PV                1
-  Act PV                1
-  VG Size               19.76 GiB
-  PE Size               4.00 MiB
-  Total PE              5058
-  Alloc PE / Size       5053 / 19.74 GiB
-  Free  PE / Size       5 / 20.00 MiB
-  VG UUID               5EEPnH-XI3s-51qa-CHcM-OcWu-aR1u-BxLisd
+  
 
 Step 9:
 Populate Database and Restart Services
@@ -281,6 +253,7 @@ cinder create --display-name Vol1 10
 |     volume_type     |                 None                 |
 +---------------------+--------------------------------------+
 
+
 cinder list
 +--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
 |                  ID                  |   Status  | Display Name | Size | Volume Type | Bootable | Attached to |
@@ -288,4 +261,53 @@ cinder list
 | 2fecb1f2-e0d0-4283-bfad-15267eb0564c | available |     Vol1     |  10  |     None    |  false   |             |
 +--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
 
-If the status is available, then volume creation and Cinder installation Completed successfully.
+If the status is available, then volume creation and Cinder installation has completed successfully.
+Attach Cinder Volume to an instance
+
+Step 11:
+To attach the Cinder Volume to the aio-test instance that has been created, you need the instance id of the instance and also the cinder volume.
+nova list
+root@aio53:/etc/cinder# nova list
++--------------------------------------+--------------+--------+------------+-------------+------------------------+
+| ID                                   | Name         | Status | Task State | Power State | Networks               |
++--------------------------------------+--------------+--------+------------+-------------+------------------------+
+| 3ae56cb3-5b96-4186-9477-565b8568b4a3 | test-aio     | ACTIVE | -          | Running     | private-net=10.10.10.4 |
+| 155b9159-57a1-4ac1-96e6-a1a67ce312da | test-compute | ACTIVE | -          | Running     | private-net=10.10.10.6 |
++--------------------------------------+--------------+--------+------------+-------------+------------------------+
+
+cinder list
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+|                  ID                  |   Status  | Display Name | Size | Volume Type | Bootable | Attached to |
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+| 55c03b5e-c7c8-432e-b9ef-bcfcc978c9c9| available |     Vol1     |  10  |     None    |  false   |             |
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+
+
+Get the VM’s VNC console URL by following command
+nova get-vnc-console test-aio novnc	
++-------+----------------------------------------------------------------------------------+
+| Type  | Url                                                                              |
++-------+----------------------------------------------------------------------------------+
+| novnc | http://10.1.64.151:6080/vnc_auto.html?token=045600c3-297d-49f9-a9da-3d7b8b804639 |
++-------+----------------------------------------------------------------------------------+
+
+Paste this URL in a web browser and login to the vm console with the user name and password shown in the console of Cirros VM and execute “fdisk –l” to see the current disks.
+
+ 
+On the aioX node,
+nova volume-attach INSTANCE_ID VOLUME_ID auto
+where INSTANCE_ID is the instance id of the nova instance and VOLUME_ID is the id of the cinder volume.
+root@aio53:/etc/cinder# nova volume-attach 3ae56cb3-5b96-4186-9477-565b8568b4a3 55c03b5e-c7c8-432e-b9ef-bcfcc978c9c9
++----------+--------------------------------------+
+| Property | Value                                |
++----------+--------------------------------------+
+| device   | /dev/vdb                             |
+| id       | 55c03b5e-c7c8-432e-b9ef-bcfcc978c9c9 |
+| serverId | 3ae56cb3-5b96-4186-9477-565b8568b4a3 |
+| volumeId | 55c03b5e-c7c8-432e-b9ef-bcfcc978c9c9 |
++----------+--------------------------------------+
+
+At this time, the console window should show the volume attachment.
+ 
+Execute “fdisk –l” to see a hard disk attached which matches the Cinder volume.
+ 
+This completes the Cinder lab where we created a Cinder Volume using LVM as backend and successfully attached it to a VM.
