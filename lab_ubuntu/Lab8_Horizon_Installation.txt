@@ -4,20 +4,22 @@ Lab 8: Horizon Dashboard Installation
 
 The OpenStack dashboard, also known as Horizon, is a Web interface that enables cloud administrators and users to manage various OpenStack resources and services.
 The dashboard enables web-based interactions with the OpenStack Compute cloud controller through the OpenStack APIs.
-
 Step 1:
 SSH to AIO node with the credentials in Lab access
 Enter following command and Type pass as the [sudo] password 
 sudo su -
 source ~/openrc.sh
 Install Horizon
-
 Step 2:
-Install the dashboard on the node that can contact the Identity Service as root. Remove the openstack-dashboard-ubuntu-theme package. This theme prevents translations, several menus as well as the network map from rendering correctly: 
-apt-get install apache2 memcached libapache2-mod-wsgi openstack-dashboard -y
+Install the dashboard on the node that can contact the Identity Service as root. Remove the OpenStack-dashboard-ubuntu-theme package. This theme prevents translations, several menus as well as the network map from rendering correctly: 
+apt-get install apache2 memcached libapache2-mod-wsgi openstack-dashboard –y
+apache2 - Apache HTTP Server and binaries
+memcached – Memory caching system
+libapache2-mod-wsgi - An Apache module that provides a WSGI (Web Server Gateway Interface) compliant interface for hosting Python based web applications within Apache.
+OpenStack-dashboard – OpenStack Dashboard (also known as Horizon)
 apt-get remove --purge openstack-dashboard-ubuntu-theme -y
 Step 3:
-Edit /etc/openstack-dashboard/local_settings.py and change OPENSTACK_HOST to the hostname of your Identity Service:
+Edit /etc/OpenStack-dashboard/local_settings.py and change OPENSTACK_HOST to the hostname of your Identity Service:
 vi /etc/openstack-dashboard/local_settings.py
 OPENSTACK_HOST = "aioX"
 
@@ -27,15 +29,15 @@ service apache2 restart
 service memcached restart
 
 Step 5:
-Open the webbrowser and type http://aio node IP address/horizon
+Open the web browser and type http://IP-address-of-AIO-Node/horizon
 Type user name as admin and password as pass
 
- ***  STOP HERE ***  STOP HERE ***
- Continue on and complete labs 9, 10 and 10a prior to returning to the next section finishing this lab.
+ 
 
--------------------------------------------------------------------------------------------------
+
+
+
 Lab 8a: Log in to the dashboard
--------------------------------------------------------------------------------------------------
 The dashboard is available on the node with the nova-dashboard server role.
 1.	Ask the cloud operator for the host name or public IP address from which you can access the dashboard, and for your user name and password.
 2.	Open a web browser that has JavaScript and cookies enabled.
@@ -114,25 +116,19 @@ Identity Panel tab
 Projects	View, create, assign users to, remove users from, and delete projects.
 Users	View, create, enable, disable, and delete users.
 
-------------------------------------------------------------------------------------------------- 
+ 
 Lab 8b: Upload and manage image
--------------------------------------------------------------------------------------------------
 A virtual machine image, referred to in this document simply as an image, is a single file that contains a virtual disk that has a bootable operating system installed on it. Images are used to create virtual machine instances within the cloud. For information about creating image files, see the OpenStack Virtual Machine Image Guide.
 Depending on your role, you may have permission to upload and manage virtual machine images. Operators might restrict the upload and management of images to cloud administrators or operators only. If you have the appropriate privileges, you can use the dashboard to upload and manage images in the admin project.
 You can also use the glance and nova command-line clients or the Image Service and Compute APIs to manage images. See the section called “Manage images”.
 
 Upload an image
 Follow this procedure to upload an image to a project.
-
 1.	Log in to the dashboard.
-
 2.	From the CURRENT PROJECT on the Project tab, select the appropriate project.
-
 3.	On the Project tab, click Images.
-
 4.	Click Create Image.
 The Create an Image dialog box appears.
-
 5.	Enter the following values:
 Name	Enter a name for the image.
 Description	Optionally, enter a brief description of the image.
@@ -150,42 +146,25 @@ Protected	Select this check box to ensure that only users with permissions can d
 The image is queued to be uploaded. It might take some time before the status changes from Queued to Active.
 Update an image
 Follow this procedure to update an existing image.
-
 1.	Log in to the dashboard.
-
 2.	From the CURRENT PROJECT on the Project tab, select the appropriate project.
-
 3.	On the Project tab, click Images.
-
 4.	Select the image that you want to edit.
-
 5.	In the Actions column, click More and then select Edit from the list.
-
 6.	In the Update Image dialog box, you can perform the following actions:
 •	Change the name of the image.
 •	Select the Public check box to make the image public.
 •	Clear the Public check box to make the image private.
-
 7.	Click Update Image.
 Delete an image
 Deletion of images is permanent and cannot be reversed. Only users with the appropriate permissions can delete images.
-
 1.	Log in to the dashboard.
-
 2.	From the CURRENT PROJECT on the Project tab, select the appropriate project.
-
 3.	On the Project tab, click Images.
-
 4.	Select the images that you want to delete.
-
 5.	Click Delete Images.
-
 6.	In the Confirm Delete Image dialog box, click Delete Images to confirm the deletion.
-
--------------------------------------------------------------------------------------------------
 Lab 8c: Configure access and security for instances
--------------------------------------------------------------------------------------------------
-
 Before you launch an instance, you should add security group rules to enable users to ping and use SSH to connect to the instance. To do so, you either add rules to the default security group or add a security group with rules.
 Key pairs are SSH credentials that are injected into an instance when it is launched. To use key pair injection, the image that the instance is based on must contain the cloud-init package. Each project should have at least one key pair. For more information, see the section called “Add a key pair”.
 If you have generated a key pair with an external tool, you can import it into OpenStack. The key pair can be used for multiple instances that belong to a project. For more information, see the section called “Import a key pair”.
@@ -194,26 +173,18 @@ When an instance is created in OpenStack, it is automatically assigned a fixed I
 Add a rule to the default security group
 This procedure enables SSH and ICMP (ping) access to instances. The rules apply to all instances within a given project, and should be set for every project unless there is a reason to prohibit SSH or ICMP access to the instances.
 This procedure can be adjusted as necessary to add additional security group rules to a project, if your cloud requires them.
-
 1.	Log in to the dashboard, choose a project, and click Access & Security. The Security Groups tab shows the security groups that are available for this project.
-
 2.	Select the default security group and click Edit Rules.
-
 3.	To allow SSH access, click Add Rule.
-
 4.	In the Add Rule dialog box, enter the following values:
-
 Rule	SSH
 Remote	CIDR
 CIDR	0.0.0.0/0
 
 To accept requests from a particular range of IP addresses, specify the IP address block in the CIDR box.
-
 5.	Click Add.
 Instances will now have SSH port 22 open for requests from any IP address.
-
 6.	To add an ICMP rule, click Add Rule.
-
 7.	In the Add Rule dialog box, enter the following values:
 Rule	All ICMP
 Direction	Ingress
@@ -225,67 +196,40 @@ Instances will now accept all incoming ICMP packets.
 
 Add a key pair
 Create at least one key pair for each project.
-
 1.	Log in to the dashboard, choose a project, and click Access & Security.
-
 2.	Click the Keypairs tab, which shows the key pairs that are available for this project.
-
 3.	Click Create Keypair.
-
 4.	In the Create Keypair dialog box, enter a name for your key pair, and click Create Keypair.
-
 5.	Respond to the prompt to download the key pair.
  Import a key pair
 If you don’t have a keypair on your local machine (aka OS-X or Linux or the AIO control host):
 cat ~/.ssh/id_rsa.pub
 If that is blank, then:
 ssh-keygen –t rsa –f ~/.ssh/id_rsa –N ''
-
 1.	Log in to the dashboard, choose a project, and click Access & Security.
-
 2.	Click the Keypairs tab, which shows the key pairs that are available for this project.
-
 3.	Click Import Keypair.
-
-4.	In the Import Keypair dialog box, enter the name of your key pair, copy the public key into the 
-Public Key box, and then click Import Keypair.
+4.	In the Import Keypair dialog box, enter the name of your key pair, copy the public key into the Public Key box, and then click Import Keypair.
 If you are using the dashboard from a Windows computer, use PuTTYgen to load the *.pem file and convert and save it as *.ppk. For more information see the WinSCP web page for PuTTYgen.
-
-5.	To make the key pair known to SSH, run the ssh-add command.
-$ ssh-add yourPrivateKey.pem
-
 The Compute database registers the public key of the key pair.
 The dashboard lists the key pair on the Access & Security tab, though you can not download the public keypair directly from horizon.
 Allocate a floating IP address to an instance
 When an instance is created in OpenStack, it is automatically assigned a fixed IP address in the network to which the instance is assigned. This IP address is permanently associated with the instance until the instance is terminated.
 However, in addition to the fixed IP address, a floating IP address can also be attached to an instance. Unlike fixed IP addresses, floating IP addresses can have their associations modified at any time, regardless of the state of the instances involved. This procedure details the reservation of a floating IP address from an existing pool of addresses and the association of that address with a specific instance.
-
 1.	Log in to the dashboard, choose a project, and click Access & Security.
-
 2.	Click the Floating IPs tab, which shows the floating IP addresses allocated to instances.
-
 3.	Click Allocate IP to Project.
-
 4.	Choose the pool from which to pick the IP address.
-
 5.	Click Allocate IP.
-
 6.	In the Floating IPs list, click Associate.
-
 7.	In the Manage Floating IP Associations dialog box, choose the following options:
 •	The IP Address field is filled automatically, but you can add a new IP address by clicking the + button.
 •	In the Ports to be associated field, select a port from the list.
-
 8.	The list shows all the instances with their fixed IP addresses.
-
 9.	Click Associate.
 To disassociate an IP address from an instance, click the Disassociate button.
 To release the floating IP address back into the pool of addresses, click the More button and select the Release Floating IP option.
-
--------------------------------------------------------------------------------------------------
 Lab 8d: Launch and manage instances
--------------------------------------------------------------------------------------------------
-
 Instances are virtual machines that run inside the cloud.
 You can launch an instance from the following sources:
 •	Images uploaded to the OpenStack Image Service, as described in the section called “Upload and manage images”.
@@ -300,9 +244,7 @@ To boot a Xen image from a volume, the image you launch in must be the same type
 1.	Log in to the dashboard, choose a project, and click Images.
 The dashboard shows the images that have been uploaded to OpenStack Image Service and are available for this project.
 For details on creating images, see Creating images manually in the OpenStack Virtual Machine Image Guide.
-
 2.	Select an image and click Launch.
-
 3.	In the Launch Instance dialog box, specify the following values:
 
 Details tab
@@ -350,51 +292,33 @@ If you did not provide a key pair, security groups, or rules, users can access t
 Connect to your instance by using SSH
 To use SSH to connect to your instance, you use the downloaded keypair file.
 The user name is ubuntu for the Ubuntu cloud images on TryStack.
-
 1.	Copy the IP address for your instance.
-
 2.	Use the ssh command to make a secure connection to the instance. For example:
 $ ssh -i MyKey.pem ubuntu@10.0.0.2
-
 3.	At the prompt, type yes.
 Track usage for instances
 You can track usage for instances for each project. You can track costs per month by showing metrics like number of vCPUs, disks, RAM, and uptime for all your instances.
 1.	Log in to the dashboard, choose a project, and click Overview.
-
 2.	To query the instance usage for a month, select a month and click Submit.
-
 3.	To download a summary, click Download CSV Summary.
-
 Create an instance snapshot
-
 1.	Log in to the dashboard, choose a project, and click Instances.
-
 2.	Select the instance from which to create a snapshot.
-
 3.	In the Actions column, click Create Snapshot.
-
 4.	In the Create Snapshot dialog box, enter a name for the snapshot, and click Create Snapshot.
 The Images category shows the instance snapshot.
 To launch an instance from the snapshot, select the snapshot and click Launch. Proceed with the section called “Launch an instance”.
 
 Manage an instance
-
 1.	Log in to the dashboard, choose a project, and click Instances.
-
 2.	Select an instance.
-
 3.	In the More list in the Actions column, select the state.
 You can resize or rebuild an instance. You can also choose to view the instance console log, edit instance or the security groups. Depending on the current state of the instance, you can pause, resume, suspend, soft or hard reboot, or terminate it.
 
--------------------------------------------------------------------------------------------------
 Lab 8e: Create and manage volumes
--------------------------------------------------------------------------------------------------
-
 Volumes are block storage devices that you attach to instances to enable persistent storage. You can attach a volume to a running instance or detach a volume and attach it to another instance at any time. You can also create a snapshot from or delete a volume. Only administrative users can create volume types.
 Create a volume
-
 1.	Log in to the dashboard, choose a project, and click Volumes.
-
 2.	Click Create Volume.
 In the dialog box that opens, enter or select the following values.
 Volume Name	Specify a name for the volume.
@@ -418,83 +342,49 @@ Options to use a snapshot or a volume as the source for a volume are displayed o
 The dashboard shows the volume on the Volumes tab.
 Attach a volume to an instance
 After you create one or more volumes, you can attach them to instances. You can attach a volume to one instance at a time.
-
 1.	Log in to the dashboard, choose a project, and click Volumes.
-
 2.	Select the volume to add to an instance and click Edit Attachments.
-
 3.	In the Manage Volume Attachments dialog box, select an instance.
-
 4.	Enter the name of the device from which the volume is accessible by the instance.
 The actual device name might differ from the volume name because of hypervisor settings.
-
 5.	Click Attach Volume.
 The dashboard shows the instance to which the volume is now attached and the device name.
 You can view the status of a volume in the Volumes tab of the dashboard. The volume is either Available or In-Use.
 Now you can log in to the instance and mount, format, and use the disk.
 Detach a volume from an instance
-
 1.	Log in to the dashboard, choose a project, and click Volumes.
-
 2.	Select the volume and click Edit Attachments.
-
 3.	Click Detach Volume and confirm your changes.
-
 A message indicates whether the action was successful.
 Create a snapshot from a volume
-
 1.	Log in to the dashboard, choose a project, and click Volumes.
-
 2.	Select a volume from which to create a snapshot.
-
 3.	From the More list, select Create Snapshot.
-
 4.	In the dialog box that opens, enter a snapshot name and a brief description.
-
 5.	Confirm your changes.
 The dashboard shows the new volume snapshot in Volume Snapshots tab.
-
 Edit a volume
-
 1.	Log in to the dashboard, choose a project, and click Volumes.
-
 2.	From the CURRENT PROJECT on the Project tab, select the appropriate project.
-
 3.	On the Project tab, click Volumes.
-
 4.	Select the image that you want to edit.
-
 5.	In the Actions column, click Edit Volume.
-
 6.	In the Edit Volume dialog box, update the name and description of the image.
-
 7.	Click Edit Volume.
 You can extend a volume by using the Extend Volume option available in the More dropdown list and entering the new value for volume size.
-
 Delete a volume
 When you delete an instance, the data in its attached volumes is not destroyed.
-
 1.	Log in to the dashboard, choose a project, and click Volumes.
-
 2.	Select the check boxes for the volumes that you want to delete.
-
 3.	Click Delete Volumes and confirm your choice.
 A message indicates whether the action was successful. 
-
--------------------------------------------------------------------------------------------------
 Lab 8f: Create and manage networks
--------------------------------------------------------------------------------------------------
-
 The OpenStack Networking service provides a scalable system for managing the network connectivity within an OpenStack cloud deployment. It can easily and quickly react to changing network needs (for example, creating and assigning new IP addresses).
 Networking in OpenStack is complex. This section provides the basic instructions for creating a network and a router. For detailed information about managing networks, refer to the OpenStack Cloud Administrator Guide.
 Create a network
-
 1.	Log in to the dashboard, choose a project, and click Networks.
-
 2.	Click Create Network.
-
 3.	In the Create Network dialog box, specify the following values.
-
 Network tab
 Network Name	Specify a name to identify the network.
 Subnet tab
@@ -513,20 +403,13 @@ Host Routes	Specify the IP address of host routes.
 
 4.	Click Create.
 The dashboard shows the network on the Networks tab.
-
 Create a router
-
 1.	Log in to the dashboard, choose a project, and click Routers.
-
 2.	Click Create Router.
-
 3.	In the Create Router dialog box, specify a name for the router and click Create Router.
 The new router is now displayed in the Routers tab.
-
 4.	Click the new router's Set Gateway button.
-
 5.	In the External Network field, specify the network to which the router will connect, and then click Set Gateway.
-
 6.	To connect a private network to the newly created router, perform the following steps:
 a)	On the Routers tab, click the name of the router.
 b)	On the Router Details page, click Add Interface.
@@ -536,6 +419,5 @@ IP Address (optional)	Enter the router interface IP address for the selected sub
 Note: If this value is not set, then by default, the first host IP address in the subnet is used by OpenStack Networking.
 
 The Router Name and Router ID fields are automatically updated.
-
 7.	Click Add Interface.
 You have successfully created the router. You can view the new topology from the Network Topology tab.
