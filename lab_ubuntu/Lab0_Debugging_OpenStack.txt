@@ -2,7 +2,9 @@
 Lab 0 - Debug Strategy in OpenStack
 -------------------------------------------------------------------------------------------------
 
-Part of the learning process- and the reality of working with OpenStack- is that problems do arise that require troubleshooting. Here we provide strategy and guidance about how to figure out where the problem may lie.
+How to debug issues in OpenStack
+
+Part of the learning process- and the reality of working with OpenStack- is that problems do arise that require troubleshooting. Here we provide strategy and guidance about how to figure out where the problem might be.
 
 NOTE: In guidance below, replace {service} with the name of the service of interest to you.
 
@@ -25,35 +27,36 @@ And then use the arrow keys on your keyboard to scroll up (<ctrl>-b scrolls back
 Get help for screen (many more capabilities):
 <ctrl>-a ?
 
-log files:  There are numerous log files per service, and often the error will be exposed in the log file output.  Each project will have a log directory in /var/log/{service}.  Since services have different components that operate in similar but not always equivalent fashion, it’s best to use screen to open a session per log file so you can watch the entire set of possible outputs to find the system that isn’t responding appropriately.  You can follow the logs with the “tail” command such as:
+log files:  There are numerous log files per service, and often the error will be exposed in the log file output.  Each project will have a log directory in /var/log/{service} (for example /var/log/glance will have the log files for glance).  Since services have different components that operate in similar but not always equivalent fashion, it’s best to use screen to open a session per log file so you can watch the entire set of possible outputs to find the system that isn’t responding appropriately.  You can follow the logs with the “tail” command such as:
 
 tail -f /var/log/{service}/{service}-api.log
 
 When you are done following the file, you can exit out with:
 
 <ctrl>-c
-·      Logging may be low level, look at .conf file (/etc/{service}/*conf), turn on Verbose and 
-Debug options. (e.g. etc/glance/glance.conf)
+·      Logging may be low level, look at .conf file (/etc/{service}/*conf), turn on verbose and 
+debug options. (e.g. etc/glance/glance.conf)
 ·      Restart services if changing logging levels
-Now that we know how to watch the logs and can see what’s going on, we can try to spot the errors both in the .conf file (just by reviewing the actual lines typed in.  Do you understand them?):
 
-Usual issues are that AMQP isn’t connected and eventually quits trying to connect (usually in the API log).  The same is true for mysql mis-configurations.  If an error is found it’s best to restart all of the services in that project group (e.g. all the nova processes) in case there’s a non-obvious interaction with Rabbit or Mysql buried in the application components themselves.
+Now that we know how to watch the logs and can see what’s going on, we can try to spot the errors both in the .conf file (just by reviewing the actual lines typed in).
+
+Usual issues are that AMQP isn’t connected and eventually quits trying to connect (usually in the API log).  The same is true for mysql mis-configurations.  If an error is found it’s best to restart all of the services in that project group (e.g. the entire nova processes) in case there’s a non-obvious interaction with Rabbit or Mysql buried in the application components themselves.
 
 You can check through the following configurations in /etc/{service}/{service}.conf
-the keystone API URI/URL components and port.
-the hostname provided for all the different services
-check target URI/URL components in .conf file
-validate endpoint in keystone. You can do this via the {service} cli tool, for example:
+•	the keystone API URI/URL components and port.
+•	the hostname provided for all the different services
+•	check target URI/URL components in .conf file
+•	validate endpoint in keystone. You can do this via the {service} cli tool.
 
 glance --debug image-list
 
-Should spit out something like:
+Should have an output something like:
 
 $ glance --debug image-list
 curl -i -X GET -H 'Accept-Encoding: gzip, deflate' -H 'Accept: */*' -H 'User-Agent: python-glanceclient' -H 'Connection: keep-alive' -H 'X-Auth-Token: {SHA1}73459d07b6cf38f67503dc2ec9090c48c479c8b7' -H 'Content-Type: application/octet-stream' http://c240-1.onecloud:9292/v1/images/detail?sort_key=name&sort_dir=asc&limit=20
 
 REST Commands
-The cli with --debug also spits out the correctly focused ReST calls (with curl as the application already even) that you can generally pasted into your console to see what’s happening.
+The cli with --debug also prints out the correctly focused REST calls (with curl as the application already even) that you can generally pasted into your console to see what’s happening.
 
 Rapidly restarting services
 If you need to restart all of the nova or neutron services, you can do so quickly on Ubuntu as follows:
