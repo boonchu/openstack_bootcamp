@@ -2,13 +2,13 @@
 *****   Lab 6: Test Neutron/GRE tunnel   *****
 -------------------------------------------------------------------------------------------------
 
-Log On to the AIOX node with the credentials in LAB access Sheet
 Launch an Instance
-An instance is a virtual machine that OpenStack provisions on a Compute servers.
-Generate a keypair that consists of a private and public key to be able to launch instances on OpenStack. These keys are injected into the instances to make password-less SSH access to the instance. 
-
+An instance is a virtual machine that OpenStack provisions on Compute nodes.
+When you launch a virtual machine, you can inject a key pair, which provides SSH access to your instance. These keys are injected into the instances to make password-less SSH access to the instance.  If the key pair is generated with an external tool, you can import it into OpenStack.
+If an image uses a static root password or a static key set—neither is recommended—you must not provide a key pair when you launch the instance.
 Step 1:
-Type ssh-keygen to generate the keypair and Press Enter for all prompts
+Generate a keypair that consists of a private and public key 
+On the AIO node, execute ssh-keygen to generate the keypair and choose default values for all prompts
 ssh-keygen
 root@aio51:~# ssh-keygen
 Generating public/private rsa key pair.
@@ -35,7 +35,8 @@ The key's randomart image is:
 
 Add the key to the system as mykey
 nova keypair-add --pub_key ~/.ssh/id_rsa.pub mykey
-You have just created the mykey keypair. The id_rsa private key is saved locally in ~/.ssh, which you can use to connect to an instance launched by using mykey as the keypair. To view available keypairs:
+You have just created a keyapir named “mykey”. The id_rsa private key is saved locally in ~/.ssh, which you can use to connect to an instance launched by using mykey as the keypair. 
+To view available keypairs:
 nova keypair-list
 +-------+-------------------------------------------------+
 | Name  | Fingerprint                                     |
@@ -44,7 +45,8 @@ nova keypair-list
 +-------+-------------------------------------------------+
 
 Step 2:
-To use SSH and ping to the VMs, configure security group rules.
+Security groups and security group rules allows administrators and tenants the ability to specify the type of traffic and direction (ingress/egress) that is allowed to pass through a port.
+To test connectivity to the VMs (using ping and ssh), modify the security group rule named “default”.
 nova secgroup-add-rule default tcp 22 22 0.0.0.0/0
 +-------------+-----------+---------+-----------+--------------+
 | IP Protocol | From Port | To Port | IP Range  | Source Group |
@@ -59,11 +61,10 @@ nova secgroup-add-rule default icmp -1 -1 0.0.0.0/0
 | icmp        | -1        | -1      | 0.0.0.0/0 |              |
 +-------------+-----------+---------+-----------+--------------+
 
-To launch an instance, you must specify the flavor ID, keypair, image ID. A flavor is a resource allocation profile. It specifies how many virtual CPUs and how much RAM your instance gets. 
-
 Step 3:
+To launch an instance, you must specify the flavor ID, keypair, image ID. 
+A flavor is a resource allocation profile. It specifies how many virtual CPUs and how much RAM the instance is allocated.
 To see a list of the available profiles:
-
 nova flavor-list
 +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
 | ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
@@ -76,7 +77,6 @@ nova flavor-list
 +----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
 
 Get the ID of the image to use for the instance:
-
 nova image-list
 +--------------------------------------+--------------+--------+--------+
 | ID                                   | Name         | Status | Server |
@@ -86,11 +86,10 @@ nova image-list
 
 Step 4:
 Create one VM in each host 
-Note: Change X and Y Values with your Aio and Compute numbers
+Note: Change X and Y Values with your AIO and Compute nodes
 nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:aioX --key_name mykey test-aio
-nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:ComputeY --key_name mykey test-compute
+nova boot --image CirrOS\ 0.3.2 --flavor 1 --availability_zone nova:computeY --key_name mykey test-compute
 Check to see if the VMs were spun up correctly 
-
 nova list 
 +--------------------------------------+--------------+--------+------------+-------------+--------------------+
 | ID                                   | Name         | Status | Task State | Power State | Networks           |
@@ -110,3 +109,4 @@ nova get-vnc-console test-aio novnc
 
 Paste this URL in a web browser and login to the vm console with the user name and password shown in the console of Cirros VM.
 Ping the other VM and confirm that GRE tunnel has been established.
+
