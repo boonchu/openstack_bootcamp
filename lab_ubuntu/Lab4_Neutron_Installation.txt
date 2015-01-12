@@ -4,21 +4,28 @@
 
 Like Nova Networking, Neutron manages software-defined networking for your OpenStack installation. However, unlike Nova Networking, you can configure Neutron for advanced virtual network topologies, such as per-tenant private networks and more.
 Any given Neutron set up has at least one external network. This network, unlike the other networks, is not merely a virtually defined network. Instead, it represents the view into a slice of the external network that is accessible outside the OpenStack installation.
-The Open vSwitch plug-in is one of the most popular core plug-ins. Open vSwitch configurations consists of bridges and ports. With Open vSwitch, you can use two different technologies to create the virtual networks: GRE or VLANs. To use GRE with Open vSwitch, Neutron creates GRE tunnels. These tunnels are ports on a bridge and enable bridges on different systems to act as though they were one bridge, which allows the compute and network nodes to act as one for the purposes of routing.
+The Open vSwitch plug-in is one of the most popular core plug-ins. Open vSwitch configurations consists of bridges and ports. With Open vSwitch, you can use different technologies to create the virtual networks: VLANs, GRE or VXLAN. To use GRE with Open vSwitch, Neutron creates GRE tunnels. These tunnels are ports on a bridge and enable bridges on different systems to act as though they were one bridge, which allows the compute and network nodes to act as one for the purposes of routing.
 SSH to AIO node with the credentials in Lab access
 Enter following command and Type pass as the [sudo] password 
-
 Step 1:
 sudo su -
 source ~/openrc.sh
 Neutron Installation
-
 Step 2:
-apt-get install neutron-server neutron-plugin-ml2 -y
-apt-get install neutron-plugin-ml2 neutron-dhcp-agent neutron-plugin-openvswitch-agent openvswitch-datapath-dkms neutron-l3-agent -y
+Install the following packages for neutron.
+apt-get install neutron-server neutron-plugin-ml2 –y
+neutron-server: exposes the Neutron API, and passes all webservice calls to the Neutron plugin for processing. 
+neutron-plugin-ml2: The Modular Layer 2 (ml2) plugin is a framework allowing OpenStack Networking to simultaneously utilize the variety of layer 2 networking technologies which currently works with the existing openvswitch, linuxbridge, and hyperv L2 agents, and is intended to replace and deprecate the monolithic plugins associated with those L2 agents.
+Additional packages which are required -
+apt-get install neutron-dhcp-agent neutron-plugin-openvswitch-agent neutron-l3-agent –y
+neutron-dhcp-agent: Provides instances with IP addresses.
+neutron-plugin-openvswitch-agent: Plugin agent for the Open vSwitch.
+neutron-l3-agent: Allows tenants to create routers using the Linux IP stack and iptables to perform L3 forwarding and NAT.In order to support multiple routers and potentially overlapping address space, it utilizes the network namespace feature of the kernel.
+(Optional) openvswitch-datapath-dkms: Ubuntu installations using Linux kernel version 3.11 or newer do not require the openvswitch-datapath-dkms package. This package provides the Open vSwitch datapath module source code that is needed by openvswitch-switch.
+
+
 Database Creation
 Create neutron database by login to mysql with password as pass 
-
 Step 3:
 mysql -u root -ppass
 CREATE DATABASE neutron;
@@ -28,7 +35,6 @@ GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' \
 IDENTIFIED BY 'pass';
 exit
 Create User Neutron with password as pass
-
 Step 4:
 keystone user-create --name=neutron --pass=pass --email=neutron@onecloud.com
 +----------+----------------------------------+
@@ -42,7 +48,6 @@ keystone user-create --name=neutron --pass=pass --email=neutron@onecloud.com
 +----------+----------------------------------+
 keystone user-role-add --user=neutron --tenant=service --role=admin
 Define services and service endpoints
-
 Step 5:
 keystone service-create --name=neutron --type=network \
      --description="OpenStack Networking Service"
@@ -71,29 +76,34 @@ keystone endpoint-create --service-id $(keystone service-list | awk '/ network /
 |    region   |            regionOne             |
 |  service_id | f5fafa686097469bb31f8cc77fd9b51f |
 +-------------+----------------------------------+
-Enable packet forwarding and disable packet destination filtering so that the network node can coordinate traffic for the VMs. Edit the /etc/sysctl.conf file, as follows:
 
 Step 6:
+Certain kernel level networking functions need to be enabled for coordination of traffic for the VMs. 
+Edit the /etc/sysctl.conf file, as follows:
+
 vi /etc/sysctl.conf
 Edit the following settings 
 net.ipv4.ip_forward=1
 net.ipv4.conf.all.rp_filter=0
 net.ipv4.conf.default.rp_filter=0
 Save the file by pressing ‘Esc’ and then type :wq
-Type the following command and confirm the changes are saved
 
-sysctl -p
+Type the following command which will return the above values saved for ipv4 to confirm the changes made -
+
+sysctl –p
+
 Configure Neutron Service
 Edit the /etc/neutron/neutron.conf file.
-
 Step 7:
 vi /etc/neutron/neutron.conf
-
 [DEFAULT]
-core_plugin = ml2
 service_plugins = router
 auth_strategy = keystone
 allow_overlapping_ips = True
+
+Note: If you look for “core_plugin” in the file you will find that the ml2 plugin is the default.
+
+Also, the below need to be specified in the same file -
 
 rpc_backend = neutron.openstack.common.rpc.impl_kombu
 rabbit_host = aioX	
@@ -111,8 +121,11 @@ admin_password = pass
 [database]
 connection = mysql://neutron:pass@aioX/neutron
 
+Kombu is a messaging library for Python. The aim of Kombu is to make messaging in Python easy by providing a high-level interface for the AMQ protocol.
+
+Save and exit the file.
+
 Step 8:
-Edit the /etc/neutron/neutron.conf file and add the following keys to the [DEFAULT] section:
 Obtain the service tenant identifier (id) with following command and fill it in neutron.conf
 keystone tenant-get service
 +-------------+----------------------------------+
@@ -124,6 +137,7 @@ keystone tenant-get service
 |     name    |             service              |
 +-------------+----------------------------------+ 
 
+Edit the /etc/neutron/neutron.conf file and add the following keys to the [DEFAULT] section:
 [DEFAULT]
 notify_nova_on_port_status_changes = True
 notify_nova_on_port_data_changes = True
@@ -133,9 +147,9 @@ nova_admin_tenant_id = SERVICE_TENANT_ID (Get it from the output of keystone ten
 nova_admin_password = pass
 nova_admin_auth_url = http://aioX:35357/v2.0
  
-To perform DHCP on the software-defined networks, Networking supports several different plug-ins. However, in this lab we are using Dnsmasq plug-in. 
-
 Step 9:
+By default to provide DHCP services on the software-defined networks neutron uses dnsmasq which is a light weight DNS forwarder and a DHCP server. 
+In our case the DHCP agent is also on the AIO node so the configuration file for it needs to be modified to reflect the desired settings.
 Edit the /etc/neutron/dhcp_agent.ini file: 
 vi /etc/neutron/dhcp_agent.ini 
 interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
@@ -143,13 +157,15 @@ dhcp_driver = neutron.agent.linux.dhcp.Dnsmasq
 use_namespaces = True
 
 Step 10:
+The L3 agent configuration is stored in the “/etc/neutron/l3_agent.ini” file.
 Edit the /etc/neutron/l3_agent.ini: uncomment
 vi /etc/neutron/l3_agent.ini
 interface_driver = neutron.agent.linux.interface.OVSInterfaceDriver
 use_namespaces = True
-
 Step 11:
-Edit the /etc/neutron/plugins/ml2/ml2_conf.ini file:
+The ML2 plugin configuration is stored in the “/etc/neutron/plugins/ml2/ml2_conf.ini” file and it specifies things like what network types (vlan, gre etc) or mechanism drivers (for specific hardware for example) need to be used. 
+We will be using GRE as the encapsulation.
+vi /etc/neutron/plugins/ml2/ml2_conf.ini
 Add the following keys to the [ml2], [ml2_type_gre] section:
 [ml2]
 type_drivers = gre
@@ -167,8 +183,8 @@ enable_security_group = True
 local_ip = eth1_INTERFACE_IP_ADDRESS #replace text with IP address
 tunnel_type = gre
 enable_tunneling = True
-
 Step 12:
+Metadata service allows a VM instance to retrieve instance specific data like SSH keys, startup scripts etc. The request is received by the Metadata agent and is relayed to nova.
 Edit the /etc/neutron/metadata_agent.ini file and modify the [DEFAULT] section:
 vi /etc/neutron/metadata_agent.ini
  [DEFAULT]
@@ -200,7 +216,6 @@ linuxnet_interface_driver = nova.network.linux_net.LinuxOVSInterfaceDriver
 firewall_driver = nova.virt.firewall.NoopFirewallDriver
 security_group_api = neutron
 
-No matter which networking technology you use, you must add the br-int integration bridge, which connects to the VMs, and the br-ex external bridge, which connects to the outside world.
 
 Step 14:
 service nova-api restart
@@ -211,11 +226,12 @@ service neutron-l3-agent restart
 service neutron-dhcp-agent restart
 service neutron-metadata-agent restart
 service openvswitch-switch restart
+We need to add the integration bridge (this connects to the VMs) and the external bridge (this connects to the outside world), called br-int and br-ex, respectively. br-int already exists so we will create br-ex.
 ovs-vsctl add-br br-ex
+Now we add a port (eth2) to the external bridge br-ex
 ovs-vsctl add-port br-ex eth2
-Restart Services
-
 Step 15:
+Restart Services
 service nova-scheduler restart
 service nova-conductor restart
 service neutron-server restart
@@ -237,9 +253,15 @@ neutron agent-list
 | 5b332f0a-f9f7-4bc3-8d59-76258cd5a3a6 | DHCP agent         | aio51 | :-)   | True           |
 +--------------------------------------+--------------------+-------+-------+----------------+ x
 
+Note: If the agents are not shown as “alive” then look at the log files in “/var/log/neutron” for errors.
 Step 16:
-Create the Tenant network:
+Create a Tenant network:
 neutron net-create private-net
-Created a new Subnet for Tenant network:
+Create a new Subnet for Tenant network:
 neutron subnet-create private-net --name private-subnet 10.10.10.0/24
-Neutron has been installed successfully in AIO node
+Neutron has been installed successfully in AIO node.
+For the inquisitive mind:
+•	What all OpenStack services do we have running now? Execute “keystone service-list or endpoint-list” to find out.
+•	Execute “neutron --debug subnet-list” and walk through the output. 
+•	Execute “ps –ef | grep neutron” to check the processes.
+•	Explore the log files in the “/var/log/neutron” directory.
