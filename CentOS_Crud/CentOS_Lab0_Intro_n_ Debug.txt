@@ -1,0 +1,91 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 OneCloud Consulting OpenStack Bootcamp Lab Guide \
+(CentOS version)\
+\
+Version 3.0 \'96 3 Febraury 2015\
+\
+ATTENTION\
+The information contained in this guide is for training purposes only. This guide contains information and activities that, while beneficial for purposes of training in close, non-production environment, can result in downtime or other severe consequences and therefore are not intended as a reference guide. \
+No part of this book may be reproduced in any form or by any means (graphic, electronic, mechanical, including photocopying, recording or taping, or storage in an electronic retrieval system) without permission of OneCloud Consulting.\
+OneCloud Consulting reserves the right to change the contents herein without any prior notice. \
+\
+OpenStack Lab Overview\
+Lab Topology\
+\
+OpenStack Labs \'96 Flow\
+\
+Lab Access\
+VNC to the POD machines with credentials given by the Instructor\
+( e.g. ssh localadmin@10.1.64.X)\
+Each Student will have an AIOX node and ComputeY node installed with Centos \
+SSH to the Centos machine with following credentials (X and Y values for each User will be provided by Instructor)\
+\
+\
+\
+How to Debug Issues in OpenStack\
+\
+Part of the learning process and the reality of working with OpenStack is that, problems do arise that require troubleshooting. Here we provide strategy and guidance about how to figure out where the problem may lie.\
+\
+NOTE: In guidance below, replace \{service\} with the name of the service of interest to you.\
+\
+screen: screen is a useful tool as it allows you to have multiple \'93views\'94 in a single terminal window, and lets you switch between them with a keystroke rather than opening multiple windows and point/clicking between them. \'a0In addition, screen can log the output of a terminal session to disk, making it useful for capturing the output of failures for later review.\
+\
+Start screen and log the output:\
+screen \'96L \
+\
+Once started, you can create a new screen with:\
+<ctrl>-a c\
+Which is hold the control key, and press a, release the control and a, and the press c.\
+\
+Move between the screens with\
+<ctrl>-a <space>\
+\
+Screen does live within a single \'93view\'94 of the terminal, so to look at the scrollback buffer, you have to : \
+\
+<ctrl>-a <esc>\
+And then use the arrow keys on your keyboard to scroll up (<ctrl>-b scrolls back a page, <ctrl>-f scrolls forward)\
+\
+Get help for screen (many more capabilities):\
+<ctrl>-a ?\
+\
+log files: \'a0There are numerous log files per service, and often the error will be exposed in the log file output. \'a0Each project will have a log directory in /var/log\{service\}. \'a0Since services have different components that operate in similar but not always equivalent fashion, it\'92s best to use screen to open a session per log file so you can watch the entire set of possible outputs to find the system that isn\'92t responding appropriately. \'a0You can follow the logs with the \'93tail\'94 command such as:\
+\
+tail -f /var/log/\{SERVICE\}/api.log\
+\
+When you are done following the file, you can exit out with:\
+\
+<ctrl>-c\
+\
+1. Logging may be low level, look at .conf file (/etc/\{service\}/*conf), turn on Verbose and \
+Debug options. (e.g. etc/glance/glance.conf)\
+2. Restart services if changing logging levels\
+3. Now that we know how to watch the logs and can see what\'92s going on, we can try to spot the errors both in the .conf file (just by reviewing the actual lines typed in. \'a0Do you understand them?):\
+\
+Usual issues are that AMQP isn\'92t connected and eventually quits trying to connect (usually in the API log). \'a0The same is true for mysql mis-configurations. \'a0If an error is found it\'92s best to restart all of the services in that project group (e.g. all the entire nova processes) in case there\'92s a non-obvious interaction with Rabbit or Mysql buried in the application components themselves.\
+\
+You can check through the following configurations in /etc/\{service\}/\{service\}.conf\
+the keystone API URI/URL components and port.\
+The hostname provided for all the different services\
+Check target URI/URL components in .conf file\
+Validate endpoint in keystone. You can do this via the \{service\} cli tool, for example:\
+\
+glance --debug image-list\
+\
+Should resemble out something like:\
+\
+glance --debug image-list\
+curl -i -X GET -H 'Accept-Encoding: gzip, deflate' -H 'Accept: */*' -H 'User-Agent: python-glanceclient' -H 'Connection: keep-alive' -H 'X-Auth-Token: \{SHA1\}73459d07b6cf38f67503dc2ec9090c48c479c8b7' -H 'Content-Type: application/octet-stream' http://c240-1.onecloud:9292/v1/images/detail?sort_key=name&sort_dir=asc&limit=20\
+\
+REST Commands:\
+The cli with --debug also resemble out the correctly focused ReST calls (with curl as the application already even) that you can generally pasted into your console to see what\'92s happening.\
+\
+Rapidly restarting services:\
+If you need to restart all of the nova or neutron services, you can do so quickly on Centos as follows:\
+\
+for name in `(cd /etc/init; ls *\{service\}\'92 | cut -d. -f1)`; do service $\{name\} restart; done\
+}

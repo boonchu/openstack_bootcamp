@@ -1,0 +1,155 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset77 ZapfDingbatsITC;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 5: Swift \'96 OpenStack Object Store\
+INTRODUCTION\
+The OpenStack Object Store project, known as Swift, offers cloud storage software so that you can store and retrieve lots of data with a simple API. It's built for scale and optimized for durability, availability, and concurrency across the entire data set. Swift is ideal for storing unstructured data that can grow without bound.\
+
+\f1 \uc0\u10146 
+\f0  Object, is an user data. That can be file, image, video, etc\
+
+\f1 \uc0\u10146 
+\f0  Containers, are like folders, which contains Objects.\
+KEY FEATURES\
+
+\f1 \uc0\u10146 
+\f0  Arbitrarily large objects, by default, the content of an object cannot be greater than 5\'a0GB. However, you can use a number of smaller objects to construct a large object. The large object is comprised of two types of objects, Segment Object and Manifest Object. \
+
+\f1 \uc0\u10146 
+\f0  Signed, expiring URLs, allows the creation of URLs to provide temporary access to objects. \
+
+\f1 \uc0\u10146 
+\f0  RESTFul API, Swift provides RESTFul APIs to store and retrieve user\'92s data. So irrespective of device (PC, Mobile, Tablet) user can access Swift geographically. \
+
+\f1 \uc0\u10146 
+\f0  Pseudo folders, allows users to create folders inside these directories. \
+
+\f1 \uc0\u10146 
+\f0  Support for high concurrency, multiple end users can access their data concurrently.\
+PREREQUISITES\
+
+\f1 \uc0\u10146 
+\f0  Swift Server: \
+We need a Swift  Server that is configured by OpenStack. \
+
+\f1 \uc0\u10146 
+\f0  User Credentials:\
+Required to authenticate user to access Swift Object Storage. Usually these are OpenStack Keystone Credentials. \
+\
+
+\f1 \uc0\u10146 
+\f0  Swift Client:\
+A great way to access the cluster is with the Swift command line client. The Swift client can be\'a0installed on OS X, Windows, or Linux.\
+For CentOS\
+      $sudo yum install python-setuptools\
+	$sudo easy_install pip\
+	$sudo pip install \'96upgrade setuptools\
+	$sudo pip install python-swiftclient\
+\
+LAB TOPOLOGY\
+\
+\
+\
+SWIFT THROUGH DASHBOARD\
+\
+Login Page:\
+With aioX node, access the dashboard specifying the IP of aioX in the browser.\
+Let us consider Swift configured with Keystone authentication module. So in the dashboard login form (below image) user need to provide their Keystone credentials.\
+\
+\
+\
+Container Creation Page:\
+After successful login, users can either Private or Public type of Container.\
+\
+List all Containers:\
+This portal also displays Containers present in user\'92s account.\
+\
+\
+\
+Create Objects:\
+\
+User can store their files by uploading through this portal.\
+\
+\
+\
+List all Objects:\
+Users can view all files as below.\
+\
+Create folder inside Container:\
+User can also create folder inside Container.\
+List all folders:\
+View all folders and files in it, and can also download files by clicking on download option.\
+\
+\
+\
+\
+ACCESSING FROM THE CLI:\
+By installing the Python based Swift Command Line Client (python-swiftclient) we can access Swift Storage from remote machine.\
+Once the swift client is installed you can access your cluster using a variety of commands.\
+Provide Credentials to Access Swift Storage:\
+Export your credentials to access Swift through python-swiftclient.\
+Here we have to set Four main values to access the swift storage.\
+\'95 Username of account on cluster\
+\'95 Password of account on cluster\
+\'95 Tenant name\
+\'95 Auth URL\
+\
+Set Environment Variables:\
+Set the Username, Password, TenantName and  \'93Auth URL\'94, for the cluster as environment variables to reduce human errors and make the tool even faster and easier to use.\
+Export OS_USERNAME=<UserName>\
+Export OS_TENANT_NAME=<TenantName>\
+Export OS_PASSWORD=<password>\
+export OS_AUTH_URL=http://<IPAddressOfKeystoneServer>:5000/v2.0/\
+Create a Container and Upload File in it:\
+Using upload requires passing in the name of the container name to upload to and the name of file being uploaded.\
+For example to simultaneously create a container called MY Container\'a0and upload a file called myfile.txt type.\
+\
+Create a sample file to upload:\
+[root@onecloud ~(keystone_admin)]# echo "Sample Data" >> /root/myfile.txt\
+Use \'93swift upload\'94 command to upload your file:\
+Usage: \
+Swift upload<ContainerName><FilePath>\
+Example:\
+[root@onecloud~(Keystone_admin)]#swift upload MYContainer /root/myfile.txt\
+List all your Conatiners:\
+To list all the containers for an account, use \'93swift list\'94 with no options or args.\
+ [root@onecloud~(Keystone_admin)]#swift list\
+MyContainer1\
+MyContainer2\
+List all objects of a conatiner:\
+The list command will display the contents of containers and accounts that are passed to it.\
+Usage:\
+swift list <ContainerName>\
+Example:\
+[root@onecloud ~(keystone_admin)]# swift list MyContainer1\
+MyFile1\
+MyFile2\
+\
+\
+\
+Download object from a conatiner:\
+To download an object from container:\
+Usage:\
+swift download <ContainerName> <ObjectName>\
+Example:\
+[root@onecloud ~(keystone_admin)]# swift list MyContainer1 MyFile1\
+MyFile1 [auth 0.372s, headers 0.465s, total 0.465s, 0.000 MB/s]\
+Get Temporary URL:\
+User can get temporary URL using below command:\
+Usage:\
+swift-temp-url <method> <seconds> <path> <key>\
+Where:\
+  	<method>   The method to allow; GET for example.\
+  	<seconds>  The number of seconds from now to allow requests.\
+  	<path>     The full path to the resource.\
+            	 Example: /v1/AUTH_account/c/o\
+  	<key>      The X-Account-Meta-Temp-URL-Key for the account.\
+Example:\
+Create X-Account-Meta-Temp-URL-Key for your account:\
+swift post -m "Temp-URL-Key:<YourKey>"\
+Now to get temporary url:\
+[root@onecloud ~(keystone_admin)]# swift-temp-url POST 3600 /v1/AUTH_<YourTenantID>/<ContainerName>/<ObjectName> <YourKey>\
+}

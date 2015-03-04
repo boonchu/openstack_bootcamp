@@ -1,0 +1,62 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 9f: Create and Manage Networks\
+The OpenStack Networking service provides a scalable system for managing the network connectivity within an OpenStack cloud deployment. It can easily and quickly react to changing network needs (for example, creating and assigning new IP addresses).\
+Networking in OpenStack is complex. This section provides the basic instructions for creating a network and a router. For detailed information about managing networks, refer to the\'a0OpenStack Cloud Administrator Guide.\
+Create a Network\
+1. Log in to the dashboard, choose a project, and click\'a0Networks.\
+2. Click\'a0Create Network.\
+3. In the Create Network dialog box, specify the following values.\
+Network\'a0tab\
+Network Name\
+Specify a name to identify the network.\
+Subnet\'a0tab\
+Create Subnet\
+Select this check box to create a subnet\
+You do not have to specify a subnet when you create a network, but if you do not, any attached instance receives an Error status.\
+Subnet Name\
+Specify a name for the subnet.\
+Network Address\
+Specify the IP address for the subnet.\
+IP Version\
+Select IPv4 or IPv6.\
+Gateway IP\
+Specify an IP address for a specific gateway. This parameter is optional.\
+Disable Gateway\
+Select this check box to disable a gateway IP address.\
+Subnet Detail\'a0tab\
+Enable DHCP\
+Select this check box to enable DHCP.\
+Allocation Pools\
+Specify IP address pools.\
+DNS Name Servers\
+Specify a name for the DNS server.\
+Host Routes\
+Specify the IP address of host routes.\
+\
+4. Click\'a0Create.\
+   The dashboard shows the network on the\'a0Networks\'a0tab.\
+Create a Router\
+1. Log in to the dashboard, choose a project, and click\'a0Routers.\
+2. Click\'a0Create Router.\
+3. In the Create Router dialog box, specify a name for the router and click\'a0Create Router.\
+The new router is now displayed in the\'a0Routers\'a0tab.\
+4. Click the new router's\'a0Set Gateway\'a0button.\
+5. In the\'a0External Network\'a0field, specify the network to which the router will connect, and then click\'a0Set Gateway.\
+6. To connect a private network to the newly created router, perform the following steps:\
+a) On the\'a0Routers\'a0tab, click the name of the router.\
+b) On the Router Details page, click\'a0Add Interface.\
+c) In the Add Interface dialog box, specify the following information:\
+Subnet\
+Select a subnet.\
+IP Address (optional)\
+Enter the router interface IP address for the selected subnet.\
+Note: If this value is not set, then by default, the first host IP address in the subnet is used by OpenStack Networking.\
+\
+The\'a0Router Name\'a0and\'a0Router ID\'a0fields are automatically updated.\
+7. Click\'a0Add Interface.\
+You have successfully created the router. You can view the new topology from the\'a0Network Topology\'a0tab.}

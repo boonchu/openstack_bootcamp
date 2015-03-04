@@ -1,0 +1,229 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset77 ZapfDingbatsITC;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 6: Cinder \'96 OpenStack Block Store\
+INTRODUCTION\
+
+\f1 \uc0\u10146 
+\f0  OpenStack BlockStorage (Cinder) provides persistent\'a0block-level storage\'a0devices for use with OpenStack compute instances. The block storage system manages the creation, attaching and detaching of the block devices to servers. Block storage volumes are fully integrated into OpenStack Compute and the Dashboard allowing for cloud users to manage their own storage needs\
+\
+
+\f1 \uc0\u10146 
+\f0  Block storage is appropriate for performance sensitive scenarios such as database storage, expandable file systems, or providing a server with access to raw block level storage. Snapshot management provides powerful functionality for backing up data stored on block storage volumes. Snapshots can be restored or used to create a new block storage volume.\
+\
+
+\f1 \uc0\u10146 
+\f0  This Lab Exercise gives information about Create a Cinder storage volume and attach to a VM using the CLI.\
+\
+
+\f1 \uc0\u10146 
+\f0  Snapshot support can be enabled by storing volume data as QCOW2 files on Cinder volumes rather than as flat raw files (as is done today), and leveraging QCOW2's snapshot functionality.\
+\
+TERMINOLOGY\
+
+\f1 \uc0\u10146 
+\f0  Volume, it is some space on disc, which we can attach as a block storage.\
+
+\f1 \uc0\u10146 
+\f0  Snapshot, which captures the state of volume.\
+PREREQUISITES\
+OpenStack Environment, this includes Keystone, Glance, Nova and Cinder components of OpenStack.\
+User Credentials, these are Keystone credentials user to access Block Storage. \
+Cinder Client, Command Line Cinder Client (python-cinderclient)\
+On Ubuntu:\
+apt-get install python-cinderclient\
+On CentOS:\
+Install Pre-Requisites:\
+#yum install libxml2 libxml2-devel libxslt libxslt-devel python-devel libffi-devel openssl-devel gcc\
+\
+#curl -O https://bootstrap.pypa.io/get-pip.py\
+$sudo python get-pip.py\
+$sudo pip install --upgrade setuptools\
+\
+Install the Python-CinderClient\
+$sudo pip install python-cinderclient\
+ \
+\
+\
+\
+LAB TOPOLOGY\
+\
+\
+\
+\
+CINDER CONCEPTS\
+Snapshots:\
+
+\f1 \uc0\u10146 
+\f0  Snapshots are used to store the state of the volume.\
+
+\f1 \uc0\u10146 
+\f0  Creating snapshots creates a new file which stores delta changes.\
+
+\f1 \uc0\u10146 
+\f0  Snapshoting is the efficient way to take backups, which saves lot of backup space.\
+
+\f1 \uc0\u10146 
+\f0  These snapshots are dependent on base volumes.\
+
+\f1 \uc0\u10146 
+\f0  We can create volume from these snapshots, when required.\
+\
+\
+Backups:\
+
+\f1 \uc0\u10146 
+\f0  Backups are used to store the complete volume in some persistent location.\
+
+\f1 \uc0\u10146 
+\f0  These backups are independent on original volumes.\
+
+\f1 \uc0\u10146 
+\f0  We can restore backups to use the volume.\
+
+\f1 \uc0\u10146 
+\f0  These are helpful for disaster recovery.\
+\
+ACCESSING FROM THE CLI\
+By installing the Python based Cinder Command Line Client (python-cinderclient) we can access Create Block Devices.\
+Provide Credentials to Access Block Storage:\
+Export your credentials to access Swift through python-cinderclient.\
+Here we have to set Four main values to access the Cinder Block Storage.\
+\'95 Username of account \
+\'95 Password of account \
+\'95 Tenant name\
+\'95 Auth URL\
+\
+Set Environment Variables:\
+Set the Username, Password, TenantName and  \'93Auth URL\'94, for the cluster as environment variables to reduce human errors and make the tool even faster and easier to use.\
+Export your credentials to access Cinder through python-cinderclient\
+export OS_USERNAME=<UserName>\
+export OS_TENANT_NAME=<TenantName>\
+export OS_PASSWORD=<Password>\
+export OS_AUTH_URL=http://<IPAddressOfKeystoneServer>:5000/v2.0/\
+Once you\'92ve configured your authentication parameters, you can run cinder \'96help to see a complete listing of available commands.\
+\
+Create a Volume:\
+Create a new volume using this command: \'93cinder create\'94\
+Usage: \
+cinder create --display_name <Volume_Name> \\ <Required_Size_of_Volume_in_GB>\
+You can do\'a0cinder help create\'a0to see the full syntax of the command as well as optional switches you can use\
+Example:\
+[root@onecloud]# cinder create \'96display_name \'93MyVolume\'94 2\
++---------------------+--------------------------------------+\
+|       Property      |                Value                 |\
++---------------------+--------------------------------------+\
+|     attachments     |                  []                  |\
+|  availability_zone  |                 nova                 |\
+|       bootable      |                false                 |\
+|      created_at     |      2015-01-30T18:07:15.277023      |\
+| display_description |                 None                 |\
+|     display_name    |              \'93MyVolume\'94              |\
+|      encrypted      |                False                 |\
+|          id         | ab88d5c7-da0a-4c9e-a759-6ccc0b395907 |\
+|       metadata      |                  \{\}                  |\
+|         size        |                  2                   |\
+|     snapshot_id     |                 None                 |\
+|     source_volid    |                 None                 |\
+|        status       |               creating               |\
+|     volume_type     |                 None                 |\
++---------------------+--------------------------------------+\
+\
+List all Volumes:\
+Now when you do a\'a0cinder list\'a0you should see your new volume:\
+[root@onecloud ~(keystone_admin)]# cinder list\
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+\
+|                  ID                  |   Status  | Display Name | Size | Volume Type | Bootable | Attached to |\
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+\
+| 7f644281-1fa0-43c7-b42f-a3229fd58038 | available | \'93MyVolume2\'94  |  2   |     None    |  false   |             |\
+| ab88d5c7-da0a-4c9e-a759-6ccc0b395907 | available |  \'93MyVolume\'94  |  2   |     None    |  false   |             |\
++--------------------------------------+-----------+--------------+------+-------------+----------+-------------+\
+Create Bootable Volume from Glance Image:\
+A volume is a detachable block storage device, similar to a USB hard drive. You can attach a volume to only one instance. You can create a bootable volume with any image and by using that volume we can launch only one instance.\
+\
+\
+To create bootable volume:\
+[root@onecloud ~(keystone_admin)]# cinder create \'96image_name <Glance_Image_ID> --display_name <Volume_Name> <Size>\
++---------------------+--------------------------------------+\
+|       Property      |                Value                 |\
++---------------------+--------------------------------------+\
+|     attachments     |                  []                  |\
+|  availability_zone  |                 nova                 |\
+|       bootable      |                true                  |\
+|      created_at     |      2015-01-30T18:10:35.714785      |\
+| display_description |                 None                 |\
+|     display_name    |            BootableVolume            |\
+|      encrypted      |                False                 |\
+|          id         | c505fd02-b0c4-4413-b78a-faaa4b5a3f57 |\
+|       image_id      | 3bbddb4b-9115-4da4-b198-aac18e3d7104 |\
+|       metadata      |                  \{\}                  |\
+|         size        |                  1                   |\
+|     snapshot_id     |                 None                 |\
+|     source_volid    |                 None                 |\
+|        status       |               creating               |\
+|     volume_type     |                 None                 |\
++---------------------+--------------------------------------+\
+The volume will need to be detached from any instances in order to either snapshot it or create a backup.\
+Create Backup of a Volume:\
+This makes a backup of the data on your volume and places it in Object Storage. You can then restore that backup to a new Volume. If you only have 1GB worth of data on a 2GB Volume, your backup will only be ~1GB.\
+To backup a volume:\
+[root@onecloud ~(keystone_admin)]# cinder backup-crate \\ <volume_id>\
+Restore Volume Backup:\
+To backup a volume:\
+[root@onecloud ~(keystone_admin)]# cinder backup-restore \\ <backup_id>\
+Delete Volume Backup:\
+To delete backup:\
+[root@onecloud ~(keystone_admin)]# cinder backup-delete \\ <backup_id>\
+Snapshot:\
+Two things to keep in mind when doing snapshots:\
+1. Your volume has to be detached and in\'a0available\'a0status in order for you to take a snapshot of it. You will receive an error if you try to snapshot a volume that's in-use.\
+2. You must keep the original volume that you take the snapshot of in order for the snapshot to function properly. If you delete the original volume then the snapshot will become unusable.\
+\
+Create Snapshot of a Volume:\
+This creates a replica of your volume and stores it in the Image service. You can then create new volumes based on the snapshot. A 2GB volume will have a 2GB snapshot even if you're only using 1GB worth of data on it.\
+\
+\
+To create snapshot of a volume:\
+[root@onecloud ~(keystone_admin)]# cinder snapshot-create \\ <Volume_ID>\
++---------------------+--------------------------------------+\
+|       Property      |                Value                 |\
++---------------------+--------------------------------------+\
+|      created_at     |      2015-01-30T18:14:58.461270      |\
+| display_description |                 None                 |\
+|     display_name    |                 None                 |\
+|          id         | 4a647cda-346b-43d2-8215-b69cdd39ac90 |\
+|       metadata      |                  \{\}                  |\
+|         size        |                  2                   |\
+|        status       |               creating               |\
+|      volume_id      | ab88d5c7-da0a-4c9e-a759-6ccc0b395907 |\
++---------------------+--------------------------------------+\
+\
+Create volume from Snapshot:\
+You can now create a new volume using this command. This is the base command without the variables set.\
+\
+[root@onecloud ~(keystone_admin)]# cinder create \\ \
+--snapshot-id 49999974-bf7d-49a2-b276-c6f35a67c914 2\
++---------------------+--------------------------------------+\
+|       Property      |                Value                 |\
++---------------------+--------------------------------------+\
+|     attachments     |                  []                  |\
+|  availability_zone  |                 nova                 |\
+|       bootable      |                false                 |\
+|      created_at     |      2015-01-30T18:18:18.175236      |\
+| display_description |                 None                 |\
+|     display_name    |                 None                 |\
+|      encrypted      |                False                 |\
+|          id         | 49999974-bf7d-49a2-b276-c6f35a67c914 |\
+|       metadata      |                  \{\}                  |\
+|         size        |                  2                   |\
+|     snapshot_id     | 4a647cda-346b-43d2-8215-b69cdd39ac90 |\
+|     source_volid    |                 None                 |\
+|        status       |               creating               |\
+|     volume_type     |                 None                 |\
++---------------------+--------------------------------------+\
+Delete Volume:\
+Delete a volume using this command: \'93cinder delete\'94\
+[root@onecloud ~(keystone_admin)]# cinder delete <volume_id>}

@@ -1,0 +1,184 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 3: Compute Service Installation\
+The Compute Service is a cloud computing fabric controller, which is the main part of an IaaS system. It is used to host and manage cloud computing systems.\
+Compute interacts with the Identity Service for authentication, Image Service for images, and the Dashboard for the user and administrative interface. Access to images is limited by project and by user; quotas are limited per project (for example, the number of instances). The Compute service scales horizontally on standard hardware, and downloads images to launch instances as required.\
+Compute Service Installation\
+SSH to AIO node with the credentials in Lab access.\
+\
+Enter following command and Type pass as the password\
+Step 1:\
+#su\
+#source ~/openrc.sh\
+Install Compute Controller Service packages\
+Step 2:\
+Install the Compute packages, which provide the Compute services that run on the controller node by typing below command.\
+#yum install openstack-nova-api openstack-nova-cert openstack-nova-conductor openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler python-novaclient -y\
+Install Compute Node packages.\
+Step 3:\
+Install the appropriate packages for the Compute service by typing the below command.\
+#yum install openstack-nova-compute sysfsutils -y\
+Create Database for Compute Service\
+Step 4:\
+Create Database nova for Compute service by login to mysql with password as pass\
+#mysql -uroot -ppass\
+>CREATE DATABASE nova;\
+>GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY 'pass';\
+>GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY 'pass';\
+>exit\
+Note: If SQLite database exists in the\'a0/var/lib/nova/\'a0directory delete nova.sqlite file so that it does not get used by mistake.\
+#rm /var/lib/nova/nova.sqlite\
+Step 5:\
+Create a\'a0nova\'a0user that Compute uses to authenticate with the Identity Service. Use the\'a0service\'a0tenant and give the user the\'a0admin\'a0role: (X Student POD Number)\
+#keystone user-create --name=nova --pass=pass --email=nova@onecloud.com\
++--------------+----------------------------------------------------+\
+| Property    |              Value                                              |\
++--------------+----------------------------------------------------+\
+|  email         |        nova@onecloud.com                         |\
+| enabled     |               True                                                |\
+|    id             | 0b3c90d65d514fce813666320cb7b103 |\
+|   name       |               nova                                                |\
+| username |               nova                                                |\
++------------+------------------------------------------------------+\
+\
+#keystone user-role-add --user=nova --tenant=service --role=admin\
+Configure Compute Service\
+Update nova.conf \
+\
+Step 6:\
+Edit /etc/nova/nova.conf \
+#vi /etc/nova/nova.conf\
+Configure the Compute Service to use the RabbitMQ message broker by adding these configuration keys at the end of [DEFAULT] section.\
+\
+vif_plugging_is_fatal=false\
+vif_plugging_timeout=0\
+rpc_backend =rabbit\
+rabbit_host=aioX\
+rabbit_password=pass\
+Add the my_ip, vncserver_listen, and vncserver_proxyclient_address configuration options to to the\'a0[DEFAULT]\'a0section: To get vnc acces from the pod machine give IP address instead of hostname.\
+my_ip=10.1.64.1X\
+vnc_enabled = True\
+vncserver_listen=10.1.64.1X\
+vncserver_proxyclient_address=10.1.64.1X\
+novncproxy_base_url=http://10.1.64.1X:6080/vnc_auto.html\
+\
+auth_strategy=keystone\
+glance_host=aioX\
+\
+To configure the location of the database, add following lines to the [database] and [keystone_authtoken] section: \
+\
+[database]\
+connection = mysql://nova:pass@aioX/nova\
+\
+[keystone_authtoken]\
+auth_uri = http://aioX:5000\
+auth_host = aioX\
+auth_port = 35357\
+auth_protocol = http\
+admin_tenant_name = service\
+admin_user = nova\
+admin_password = pass\
+Press Esc and Type :wq to Save the file.\
+\
+Using crudini to edit the /etc/nova/nova.conf\
+Lets create a script crudini_compute to edit the nova.conf file at one go. This script makes use of  IP from the POD_info.py \
+#vi crudini_compute.py\
+#!/usr/bin/python\
+import os\
+from POD_info import * \
+\
+def set_crud():\
+	#your config file is under /etc/nova/nova.conf\
+\
+	#create a list of crudini commands in order\
+	cmd_execute = ['crudini --set  --existing /etc/nova/nova.conf  DEFAULT vif_plugging_is_fatal false',\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT vif_plugging_timeout 0',\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT rpc_backend  '+G_rpc_backend,\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT rabbit_host '+aioX,\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT rabbit_password '+Compute_rabbit_password,\
+\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT my_ip \'91+aioX,\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT vnc_enabled True',\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT vncserver_listen \'91+aioX,\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT vncserver_proxyclient_address \'91+aioX,\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT novncproxy_base_url http://\'92+aioX+\'92:6080/vnc_auto.html',\
+\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT auth_strategy keystone',\
+'crudini --set  --existing /etc/nova/nova.conf  DEFAULT glance_host \'91+aioX,\
+\
+'crudini --set  --existing /etc/nova/nova.conf database connection mysql://\'92+Compute_mysql_user+\'92:\'92+Compute_admin_password+\'92@'+aioX+'/nova',\
+\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken auth_uri http://'+aioX+':5000',\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken auth_host '+aioX,\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken auth_port  35357',\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken auth_protocol  http',\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken admin_tenant_name  '+admin_tenant_name,\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken admin_user  '+Compute_admin_user,\
+'crudini --set  --existing /etc/nova/nova.conf keystone_authtoken admin_password '+Compute_admin_password,]\
+\
+	#iterate through the list of crudini commands and execute them one by one.\
+	for c in cmd_execute:\
+		os.system(c)\
+		print c+' status:- Executed'\
+	print "All commands executed successfully"\
+\
+set_crud()\
+\
+Run the python script so that crudini commands gets executed to modify the nova configurations.  \
+#python crudini_compute.py\
+Once the execution is finished, there appears the message as\
+All commands executed successfully\
+Step: You must determine whether your system's processor and/or hypervisor support hardware acceleration for virtual machines.\
+Run the following command to serve the purpose:\
+# egrep -c '(vmx|svm)' /proc/cpuinfo\
+If this command returns a value of one or greater, your system supports hardware acceleration which typically requires no additional configuration. \
+\
+If this command returns a value of zero, your system does not support hardware acceleration and you must configure libvirt to use QEMU instead of KVM.\
+Run the following command to configure:\
+#openstack-config --set /etc/nova/nova.conf libvirt virt_type qemu\
+Define Services and Service Endpoints\
+Register the Compute service and specify the endpoint: (X Student POD Number)\
+Step 8:\
+#keystone service-create --name=nova --type=compute --description="Nova Compute service"\
++---------------+-----------------------------------------------+\
+|   Property   |              Value                                       |\
++-------------- -+----------------------------------------------+\
+| description |       Nova Compute service                |\
+|   enabled     |               True                                        |\
+|      id          | 3c85f9ccd55d4485a4096ff4a014e593 |\
+|     name    |               nova                                              |\
+|     type      |             compute                                         |\
++-------------+----------------------------------------------------+\
+Note: Copy the Service ID to use in endpoint-create command. Or we can use keystone service-list | awk '/ compute / \{print $2\}' to get the service id of type compute.\
+	\
+Note: Change X with AIO node Number\
+\
+#keystone endpoint-create --service-id=$(keystone service-list | awk '/ compute / \{print $2\}') --publicurl=http://aioX:8774/v2/%\\(tenant_id\\)s --internalurl=http://aioX:8774/v2/%\\(tenant_id\\)s --adminurl=http://aioX:8774/v2/%\\(tenant_id\\)s\
++---------------- +----------------------------------------------------+\
+|   Property     |               Value                                              |\
++----------------+-----------------------------------------------------+\
+|   adminurl    | http://aio51:8774/v2/%(tenant_id)s      |\
+|      id             |  5c1c4cada2ea41299c53a31df57be562  |\
+| internalurl  | http://aio51:8774/v2/%(tenant_id)s       |\
+|  publicurl    | http://aio51:8774/v2/%(tenant_id)s       |\
+|    region       |             regionOne                                        |\
+|  service_id  |  3c85f9ccd55d4485a4096ff4a014e593   |\
++---------------+------------------------------------------------------+\
+\
+Step 9:\
+Create the database tables for the nova database and Restart nova services.\
+Type the following commands in terminal\
+#su -s /bin/sh -c "nova-manage db sync" nova\
+#service openstack-nova-api restart\
+#service openstack-nova-cert restart\
+#service openstack-nova-console restart\
+#service openstack-nova-scheduler restart\
+#service openstack-nova-conductor restart\
+#service openstack-nova-novncproxy restart \
+#service openstack-nova-compute restart\
+Compute Service is installed successfully.\
+}

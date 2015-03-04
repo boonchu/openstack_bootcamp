@@ -1,0 +1,61 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 9b: Upload and Manage Image\
+A virtual machine image, referred to in this document simply as an image, is a single file that contains a virtual disk that has a bootable operating system installed on it. Images are used to create virtual machine instances within the cloud. For information about creating image files, see the OpenStack Virtual Machine Image Guide.\
+Depending on your role, you may have permission to upload and manage virtual machine images. Operators might restrict the upload and management of images to cloud administrators or operators only. If you have the appropriate privileges, you can use the dashboard to upload and manage images in the\'a0admin\'a0project.\
+You can also use the\'a0glance\'a0and\'a0nova\'a0command-line clients or the Image Service and Compute APIs to manage images. See\'a0the section called \'93Manage images\'94.\
+Upload an Image\
+Follow this procedure to upload an image to a project.\
+1. Log in to the dashboard.\
+2. From the\'a0CURRENT PROJECT\'a0on the\'a0Project\'a0tab, select the appropriate project.\
+3. On the\'a0Project\'a0tab, click\'a0Images.\
+4. Click\'a0Create Image.\
+The Create an Image dialog box appears.\
+5. Enter the following values:\
+Name\
+Enter a name for the image.\
+Description\
+Optionally, enter a brief description of the image.\
+Image Source\
+Choose the image source from the list. Your choices are\'a0Image Location\'a0and Image File.\
+Image File\'a0or\'a0Image Location\
+Based on your selection for\'a0Image Source, you either enter the location URL of the image in the\'a0Image Location\'a0field. or browse to the image file on your system and add it.\
+e.g. http source and:\
+http://10.1.1.92/images/cirros-0.3.2-x86_64-disk.img\
+Format\
+Select the correct format (for example, QCOW2) for the image.\
+Architecture\
+Specify the architecture. For example,\'a0i386\'a0for a 32-bit architecture or\'a0x86-64for a 64-bit architecture.\
+Minimum Disk (GB)\'a0andMinimum RAM (MB)\
+Leave these optional fields empty.\
+Public\
+Select this check box to make the image public to all users with access to the current project.\
+Protected\
+Select this check box to ensure that only users with permissions can delete the image.\
+\
+6. Click\'a0Create Image.\
+The image is queued to be uploaded. It might take some time before the status changes from Queued to Active.\
+Update an Image\
+Follow this procedure to update an existing image.\
+1. Log in to the dashboard.\
+2. From the\'a0CURRENT PROJECT\'a0on the\'a0Project\'a0tab, select the appropriate project.\
+3. On the\'a0Project\'a0tab, click\'a0Images.\
+4. Select the image that you want to edit.\
+5. In the\'a0Actions\'a0column, click\'a0More\'a0and then select\'a0Edit\'a0from the list.\
+6. In the Update Image dialog box, you can perform the following actions:\
+\'95 Change the name of the image.\
+\'95 Select the\'a0Public\'a0check box to make the image public.\
+\'95 Clear the\'a0Public\'a0check box to make the image private.\
+7. Click\'a0Update Image.\
+Delete an Image\
+Deletion of images is permanent and\'a0cannot\'a0be reversed. Only users with the appropriate permissions can delete images.\
+1. Log in to the dashboard.\
+2. From the\'a0CURRENT PROJECT\'a0on the\'a0Project\'a0tab, select the appropriate project.\
+3. On the\'a0Project\'a0tab, click\'a0Images.\
+4. Select the images that you want to delete.\
+5. Click\'a0Delete Images.\
+6. In the\'a0Confirm Delete Image\'a0dialog box, click\'a0Delete Images\'a0to confirm the deletion.}

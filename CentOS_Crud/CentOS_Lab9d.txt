@@ -1,0 +1,101 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 9d: Launch and Manage Instances\
+Instances are virtual machines that run inside the cloud.\
+You can\'a0launch an instance\'a0from the following sources:\
+\'95 Images uploaded to the OpenStack Image Service, as described in\'a0the section called \'93Upload and manage images\'94.\
+\'95 Image that you have copied to a persistent volume. The instance launches from the volume, which is provided by the\'a0cinder-volume\'a0API through iSCSI.\
+Launch an Instance\
+When you launch an instance from an image, OpenStack creates a local copy of the image on the compute node where the instance starts.\
+When you launch an instance from a volume, note the following steps:\
+\'95 To select the volume to from which to launch, launch an instance from an arbitrary image on the volume. The image that you select does not boot. Instead, it is replaced by the image on the volume that you choose in the next steps.\
+To boot a Xen image from a volume, the image you launch in must be the same type, fully virtualized or paravirtualized, as the one on the volume.\
+\'95 Select the volume or volume snapshot from which to boot. Enter a device name. Enter\'a0vda\'a0for KVM images or\'a0xvda\'a0for Xen images.\
+\
+1. Log in to the dashboard, choose a project, and click\'a0Images.\
+The dashboard shows the images that have been uploaded to OpenStack Image Service and are available for this project.\
+For details on creating images, see Creating images manually in the\'a0OpenStack Virtual Machine Image Guide.\
+2. Select an image and click\'a0Launch.\
+3. In the Launch Instance dialog box, specify the following values:\
+Details\'a0tab\
+Availability Zone\
+By default, this value is set to the availability zone given by the cloud provider (for example,\'a0us-west\'a0or\'a0apac-south). For some cases, it could be\'a0nova.\
+Instance Name\
+Assign a name to the virtual machine.\
+The name you assign here becomes the initial host name of the server. After the server is built, if you change the server name in the API or change the host name directly, the names are not updated in the dashboard.\
+Server names are not guaranteed to be unique when created so you could have two instances with the same host name. \
+Flavor\
+Specify the size of the instance to launch.\
+The flavor is selected based on the size of the image selected for launching an instance. For example, while creating an image, if you have entered the value in the\'a0Minimun RAM (MB)field as 2048, then on selecting the image, the default flavor is\'a0m1.small. \
+Instance Count\
+To launch multiple instances, enter a value greater than 1. The default is 1.\
+Instance Boot Source\
+Your options are:\
+Boot from image\
+If you choose this option, a new field for\'a0Image Name\'a0displays. You can select the image from the list.\
+Boot from snapshot\
+If you choose this option, a new field for\'a0Instance Snapshotdisplays. You can select the snapshot from the list.\
+Boot from volume\
+If you choose this option, a new field for\'a0Volume\'a0displays. You can select the volume from the list.\
+Boot from image (creates a new volume)\
+With this option, you can boot from an image and create a volume by entering the\'a0Device Size\'a0and\'a0Device Name\'a0for your volume. Click the\'a0Delete on Terminate\'a0option to delete the volume on terminating the instance.\
+Boot from volume snapshot (creates a new volume)\
+Using this option, you can boot from a volume snapshot and create a new volume by choosing\'a0Volume Snapshot\'a0from a list and adding a\'a0Device Name\'a0for your volume. Click the\'a0Delete on Terminate option to delete the volume on terminating the instance.\
+Since you are launching an instance from an image,\'a0Boot from image\'a0is chosen by default.\
+Image Name\
+This field changes based on your previous selection. Since you have chosen to launch an instance using an image, the\'a0Image Name\'a0field displays. Select the image name from the dropdown list.\
+Access & Security\'a0tab\
+Keypair\
+Specify a key pair.\
+If the image uses a static root password or a static key set (neither is recommended), you do not need to provide a key pair to launch the instance.\
+Security Groups\
+Activate the security groups that you want to assign to the instance.\
+Security groups are a kind of cloud firewall that defines which incoming network traffic is forwarded to instances. For details, see\'a0the section called \'93Add a rule to the default security group\'94.\
+If you have not created any security groups, you can assign only the default security group to the instance.\
+Networking\'a0tab\
+Selected Networks\
+To add a network to the instance, click the\'a0+\'a0in the\'a0Available Networksfield.\
+Post-Creation\'a0tab\
+Customization Script\
+Specify a customization script that runs after your instance launches.\
+Advanced Options\'a0tab\
+Disk Partition\
+Select the type of disk partition from the dropdown list.\
+Automatic\
+Entire disk is single partition and automatically resizes.\
+Manual\
+Faster build times but requires manual partitioning.\
+\
+4. Click\'a0Launch.\
+The instance starts on a compute node in the cloud.\
+The\'a0Instances\'a0tab shows the instance's name, its private and public IP addresses, size, status, task, and power state.\
+If you did not provide a key pair, security groups, or rules, users can access the instance only from inside the cloud through VNC. Even pinging the instance is not possible without an ICMP rule configured. To access the instance through a VNC console, see\'a0the section called \'93Access an instance through a console\'94.\
+Connect to your instance by using SSH\
+To use SSH to connect to your instance, you use the downloaded keypair file.\
+The user name is\'a0centos\'a0for the centos cloud images on TryStack.\
+1. Copy the IP address for your instance.\
+2. Use the\'a0ssh\'a0command to make a secure connection to the instance. For example:\
+   $ ssh -i MyKey.pem centos@10.0.0.2\
+3. At the prompt, type\'a0yes.\
+Track Usage for Instances\
+You can track usage for instances for each project. You can track costs per month by showing metrics like number of vCPUs, disks, RAM, and uptime for all your instances.\
+1. Log in to the dashboard, choose a project, and click\'a0Overview.\
+2. To query the instance usage for a month, select a month and click\'a0Submit.\
+3. To download a summary, click\'a0Download CSV Summary.\
+Create an Instance Snapshot\
+1. Log in to the dashboard, choose a project, and click\'a0Instances.\
+2. Select the instance from which to create a snapshot.\
+3. In the\'a0Actions\'a0column, click\'a0Create Snapshot.\
+4. In the Create Snapshot dialog box, enter a name for the snapshot, and click\'a0Create Snapshot.\
+   The\'a0Images\'a0category shows the instance snapshot.\
+To launch an instance from the snapshot, select the snapshot and click\'a0Launch. Proceed with\'a0the section called \'93Launch an instance\'94.\
+Manage an Instance\
+1. Log in to the dashboard, choose a project, and click\'a0Instances.\
+2. Select an instance.\
+3. In the\'a0More\'a0list in the\'a0Actions\'a0column, select the state.\
+You can resize or rebuild an instance. You can also choose to view the instance console log, edit instance or the security groups. Depending on the current state of the instance, you can pause, resume, suspend, soft or hard reboot, or terminate it.\
+}

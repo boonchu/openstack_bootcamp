@@ -1,0 +1,118 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1344\cocoasubrtf720
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\margl1440\margr1440\vieww10800\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural
+
+\f0\fs24 \cf0 Lab 7: Application-1\
+\
+APPLICATION OVERVIEW\
+Django Python Framework:\
+Django is a high-level Python Web framework that encourages rapid development and clean, pragmatic design. Django is a free and open source web application framework, written in Python, which follows the model\'96view\'96controller architectural pattern.\
+OpenStack swift storage REST API service and Python-API-Client library provides the way to integrate with your Python and Django applications.\
+Lets see how Django storage works \uc0\u9786 \
+Django Storage \
+Django provides two convenient ways to access the current storage class:\
+class DefaultStorage( ) \
+DefaultStorage provides access to the current default storage system as defined by DEFAULT_FILE_STORAGE. \
+DefaultStorage uses get_storage_class() internally.\
+get_storage_class(import_path=None) \
+get_storage: Returns a class or module which implements the storage API.\
+When this get_storage_class gets called without the import_path parameter it will return the current default storage system as defined by DEFAULT_FILE_STORAGE. If import_path is provided, it will attempt to import the class or module from the given path and will return it if successful. An exception will be raised if the import is unsuccessful.\
+This Storage class provides a standardized API for storing files, along with a set of default behaviours that all other storage systems can inherit or override as necessary.\
+And Django allows us to connect any external storage service to the storage layer using python APIs by specifying DEFAULT_FILE_STORAGE in settings.py\
+Django-Storage-Swift\
+Django-storage-swift allows Django applications to use OpenStack Swift as a file storage layer. This library uses Swift-python-client to communicate with OpenStack swift objects and keystone python-client for authorization.\
+Features\
+\'95 Reads/writes files into/out of Swift.\
+\'95 Automatically derives the correct URL to allow files to be accessed through a web browser based on information returned from the authorisation server. \
+\'95 Allows you to override the host, port and path as necessary.\
+\'95 Supports the generation of temporary URLs to restrict access to files.\
+Usage\
+You can install django-storage-swift through pip. To store your media files on swift, add the following line to your settings.py or local_settings.py:\
+DEFAULT_FILE_STORAGE='swift.storage.SwiftStorage'\
+To store your static files on swift, add the following line:\
+STATICFILES_STORAGE ='swift.storage.StaticSwiftStorage'\
+\
+\
+Configuring django-storage-swift basic options in settings.py\
+\
+\
+The above mentioned configurations help the Django storage layer to connect with the OpenStack cloud for storing files. Whenever the user uploads files/images into Django models that will be stored in our OpenStack Swift directly. And we can retrieve it to display/download through the Public temporary URL from OpenStack Swift. That\'92s it! \
+Coding Customization:\
+We can write custom coding for the purpose of add/delete/get container, add/delete/get objects from OpenStack Swift using Python swift-client.\
+Sample snippets\
+Importing Swift-client:\
+\
+\
+\
+Deleting the objects:\
+\
+Lets see how the application works with our demo application \uc0\u9786  \
+STEPS TO RUN THE DEMO APPLICATION\
+Follow the below listed steps to have the python Django application development server being up and running accessing OpenStack Swift Object storage.\
+Step 1: Pull the code from Repository\
+$\'a0git clone\'a0https://github.com/gopal1cloud/twcswiftclient.git\
+Step 2: Get into Project Folder\'a0\
+$ cd twcswiftclient/\
+Step 3: Install Dependencies from requirement file\'a0\
+$ pip install -r requirement.txt\
+Step 4: Modify OpenStack Cloud configuration on settings file:\'a0\
+$ vim twcswiftclient/settings.py\
+Ensure the configurations in the settings.py file are done as per your environment in the aioX node\
+SWIFT_AUTH_URL\
+SWIFT_USERNAME\
+SWIFT_KEY\
+SWIFT_BASE_URL\
+\
+NOTE: Ensure the swift tempURL is set by typing the command as below without which the user able to retrieve/download the objects. This step will allow the clients to access the swift objects stored in the server through the temp-url-key permitted access.\
+$ swift post -m "Temp-URL-Key:twcswift_demo"\
+Step 5: Creating Tables on the Database with syncdb command \
+$ python manage.py syncdb\
+NOTE: While running Syncdb first time, (Django auth system asks for the Superusers) \
+The below steps will be asked for Admin account creation on the application:\
+You have installed Django's auth system, and don't have any superusers defined. Would you like to create one now? (yes/no): yes \
+Username (leave blank to use 'admin'): admin \
+Email address:\'a0admin@demo.com\
+Password: *****\
+Password (again): *****\
+Step 6: Collecting static media files to server\
+$ python manage.py collectstatic\
+This will overwrite existing files! Are you sure you want to do this?\
+Type 'yes' to continue or 'no' to cancel: yes\
+Step 7: Running Django Development Server \
+$ python manage.py runserver	\
+The output is as shown below\
+Performing system checks...\
+System check identified no issues (0 silenced).\
+January 24, 2015 - 13:14:25\
+Django version 1.7.3, using settings 'twcswiftclient.settings'\
+Starting development server at http://127.0.0.1:8000/\
+Quit the server with CONTROL-C.\
+Step 8: Access the development server specifying the IP http://127.0.0.1:8000/ (from the above output) in the browser.\
+SCREENSHOTS\
+1. Home page of the application is available (as below), once the django is  running and accessed through the browser.\
+\
+On the home page, \
+1. Admin can navigate to administration page with login credentials in order to upload images and videos and save it in Swift storage.\
+2. There are \'93My image Gallery\'94 and \'93My Video Gallery\'94 from which the desired images/videos can be downloaded.\
+3. The Login page(Administrator page)\
+Site administration page: once login is successful one can push/upload the various objects (image/videos) into the containers and then can log out.\
+\
+4. Browse for an object. Upload images (jpg,png etc) or videos and save them onto the cloud storage. \
+By pressing F12, its seen that the static web contents are rendered from swift.\
+\
+5. Clicking on the My Image Gallery on home page, list the images uploaded onto swift  container. Also the Public url for each object is visible.\
+ \
+6. Similarly videos can be uploaded onto repo, and click on My Videos gallery. List of videos are available for download along with Public URL\
+\
+7. The temp url for each object can be found from CLI by executing the below commands on the server. [Here the temp-url-key used is \'91twcswift_demo \'91. The command swift-temp-url GET proudces \'91temp_url_sig\'92 and \'91temp_url_expires\'92 parameters]\
+#swift-temp-url GET 60 /v1/AUTH_fcc6ef3a4db94fb2ac86a4af624d0802/twc_client_demo_container/Image_Repo/Canada.jpg twcswift_demo\
+The output is \
+/v1/AUTH_fcc6ef3a4db94fb2ac86a4af624d0802/twc_client_demo_container/Image_Repo/Canada.jpg?temp_url_sig=44d467161dc79ee5e219a8de1380013c9fc0d19e&temp_url_expires=1422282352\
+#swift-temp-url GET 60 /v1/AUTH_fcc6ef3a4db94fb2ac86a4af624d0802/twc_client_demo_container/Video_Repo/demo_video1.mpg twcswift_demo\
+The output is:\
+/v1/AUTH_fcc6ef3a4db94fb2ac86a4af624d0802/twc_client_demo_container/Video_Repo/demo_video1.mpg?temp_url_sig=047b2de76698c32b55b8c35446b2c14f029340c2&temp_url_expires=1422282434\
+The screenshot for the same is below:\
+\
+8.  We can login to OpenStack dashboard and can check the images and videos stored on the OpenStack Swift Object store which are uploaded through the python application.}
